@@ -166,7 +166,7 @@
                 '--table-hover-bg': '#1A0A2A',
                 '--table-border': '#2A103A',
                 '--chart-bg': '#1A0A2A',
-                '--scroll-track': '#1A0A2A',
+                '--scroll-track': '#1A2E4A',
             }
         };
 
@@ -229,25 +229,9 @@
 
         // --- Components ---
 
-        // Header Component
-        const Header = () => {
+        // Header Component - Now takes onAdminClick as a prop
+        const Header = ({ onAdminClick }) => {
             const { setCurrentPage } = React.useContext(AppContext);
-            const [showLoginModal, setShowLoginModal] = React.useState(false);
-
-            const handleAdminClick = () => {
-                setShowLoginModal(true);
-            };
-
-            const handleLogin = (username, password) => {
-                // !!! SECURITY WARNING: This is a simulated client-side login for demonstration ONLY.
-                // !!! NEVER use this for real-world authentication. Credentials are hardcoded.
-                if (username === 'admin' && password === 'admin') {
-                    setCurrentPage('settings');
-                    setShowLoginModal(false);
-                    return true;
-                }
-                return false;
-            };
 
             return (
                 <header className="relative z-10 py-6 px-4 sm:px-8 shadow-lg border-b bg-header-bg border-gray-800">
@@ -262,11 +246,10 @@
                         <nav className="flex flex-wrap justify-center sm:justify-end space-x-4 sm:space-x-6 text-sm font-medium">
                             <button onClick={() => setCurrentPage('dashboard')} className="rounded-md p-2 transition duration-300 text-primary-accent hover:text-white hover:bg-gray-800">Operational Dashboard</button>
                             <button onClick={() => setCurrentPage('congressional-trading')} className="rounded-md p-2 transition duration-300 text-primary-accent hover:text-white hover:bg-gray-800">Congressional Trading</button>
-                            <button onClick={handleAdminClick} className="rounded-md p-2 transition duration-300 text-primary-accent hover:text-white hover:bg-gray-800 font-bold border border-primary-accent px-4 py-2 rounded-lg hover:bg-primary-accent hover:text-bg-main">System Admin</button>
+                            <button onClick={onAdminClick} className="rounded-md p-2 transition duration-300 text-primary-accent hover:text-white hover:bg-gray-800 font-bold border border-primary-accent px-4 py-2 rounded-lg hover:bg-primary-accent hover:text-bg-main">System Admin</button>
                             <button className="nexus-button">Secure Log-Out</button>
                         </nav>
                     </div>
-                    {showLoginModal && <LoginModal onLogin={handleLogin} onClose={() => setShowLoginModal(false)} />}
                 </header>
             );
         };
@@ -1094,12 +1077,25 @@
 
         // Main App Component
         const App = () => {
-            const { currentPage } = React.useContext(AppContext);
+            const { currentPage, setCurrentPage } = React.useContext(AppContext);
+            const [showLoginModal, setShowLoginModal] = React.useState(false); // State for modal
+
+            const handleAdminLogin = (username, password) => {
+                // !!! SECURITY WARNING: This is a simulated client-side login for demonstration ONLY.
+                // !!! NEVER use this for real-world authentication. Credentials are hardcoded.
+                if (username === 'admin' && password === 'admin') {
+                    setCurrentPage('settings');
+                    setShowLoginModal(false); // Hide modal on successful login
+                    return true;
+                }
+                return false;
+            };
 
             return (
                 <div className="min-h-screen flex flex-col">
                     <div className="bg-grid"></div>
-                    <Header />
+                    {/* Pass setShowLoginModal to Header */}
+                    <Header onAdminClick={() => setShowLoginModal(true)} />
 
                     {/* Render current page based on state */}
                     {(() => {
@@ -1114,6 +1110,9 @@
                                 return <DashboardPage />;
                         }
                     })()}
+
+                    {/* Render LoginModal at the root level, controlled by state */}
+                    {showLoginModal && <LoginModal onLogin={handleAdminLogin} onClose={() => setShowLoginModal(false)} />}
 
                     {/* Footer Section */}
                     <footer className="relative z-10 py-6 px-4 sm:px-8 text-center text-xs border-t mt-10 text-gray-500 border-gray-800">
