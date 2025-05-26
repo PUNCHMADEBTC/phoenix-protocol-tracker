@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PHOENIX PROTOCOL: Strategic Contracts Nexus</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles for the Weaponized/High-Contrast aesthetic */
+        :root {
+            --bg-dark: #050505;
+            --primary-accent: #FF0000; /* Aggressive Red */
+            --secondary-accent: #00FF00; /* Electric Green */
+            --tertiary-accent: #FFA500; /* Sharp Orange */
+            --text-light: #E0E0E0;
+            --text-medium: #A0A0A0;
+            --border-color: #222222;
+            --glow-color: rgba(255, 0, 0, 0.7);
+            --glow-color-light: rgba(255, 0, 0, 0.3);
+            --success-color: #00FF00;
+            --warning-color: #FFA500;
+            --critical-color: #FF0000;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* High-contrast, sharp borders with glow */
+        .glow-border {
+            border: 1px solid var(--border-color);
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5); /* Inner shadow for depth */
+        }
+        .glow-border::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px; /* Controls the thickness of the glow */
+            background: linear-gradient(45deg, var(--primary-accent), var(--secondary-accent), var(--tertiary-accent));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            z-index: -1;
+            animation: glow-pulse-weaponized 3s infinite alternate;
+        }
+
+        /* Text glow for titles */
+        .text-glow {
+            text-shadow: 0 0 8px var(--glow-color), 0 0 15px var(--glow-color-light);
+        }
+
+        /* Animation for glowing borders */
+        @keyframes glow-pulse-weaponized {
+            0% {
+                opacity: 0.7;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.005);
+                box-shadow: 0 0 15px var(--primary-accent);
+            }
+            100% {
+                opacity: 0.7;
+                transform: scale(1);
+            }
+        }
+
+        /* Background grid/pattern */
+        .bg-grid {
+            background-image: linear-gradient(to right, #111 1px, transparent 1px),
+                              linear-gradient(to bottom, #111 1px, transparent 1px);
+            background-size: 30px 30px;
+            background-position: -1px -1px;
+            opacity: 0.1;
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none; /* Allow clicks through */
+        }
+
+        /* Scanline effect for certain panels */
+        .scanline-effect {
+            position: relative;
+        }
+        .scanline-effect::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.1) 50%);
+            background-size: 100% 2px;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-accent);
+            border-radius: 3px;
+            border: 1px solid var(--border-color);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--tertiary-accent);
+        }
+
+        /* Input field styling */
+        .nexus-input {
+            background-color: #1a1a1a;
+            border: 1px solid var(--primary-accent);
+            color: var(--text-light);
+            padding: 10px 15px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+        .nexus-input:focus {
+            outline: none;
+            border-color: var(--secondary-accent);
+            box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.3);
+        }
+
+        /* Button styling */
+        .nexus-button {
+            background: linear-gradient(45deg, var(--primary-accent), var(--tertiary-accent));
+            color: var(--bg-dark);
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(255, 0, 0, 0.4);
+            text-transform: uppercase;
+        }
+        .nexus-button:hover {
+            background: linear-gradient(45deg, var(--tertiary-accent), var(--primary-accent));
+            box-shadow: 0 6px 15px rgba(255, 165, 0, 0.6);
+            transform: translateY(-2px);
+        }
+
+        /* Card styling */
+        .nexus-card {
+            background-color: rgba(15, 15, 15, 0.9);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+        }
+        .nexus-card:hover {
+            border-color: var(--primary-accent);
+            box-shadow: 0 5px 20px rgba(255, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* Data display */
+        .data-label {
+            color: var(--text-medium);
+            font-size: 0.85em;
+            margin-bottom: 4px;
+        }
+        .data-value {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: var(--text-light);
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.1);
+        }
+
+        /* Animated line for visual separation */
+        .animated-line {
+            height: 2px;
+            background: linear-gradient(to right, transparent, var(--secondary-accent), transparent);
+            width: 0%;
+            animation: expand-line 1.5s forwards ease-out;
+            margin: 20px auto;
+        }
+
+        @keyframes expand-line {
+            from { width: 0%; }
+            to { width: 100%; }
+        }
+
+        /* Loader/Spinner effect (simulated) */
+        .loader {
+            border: 4px solid rgba(255, 0, 0, 0.2);
+            border-top: 4px solid var(--primary-accent);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Sidebar & Alert styling */
+        .sidebar {
+            background-color: rgba(10, 10, 10, 0.85);
+            border-right: 1px solid var(--border-color);
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        .alert-item {
+            background-color: rgba(255, 0, 0, 0.1);
+            border-left: 3px solid var(--critical-color);
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 0.85em;
+            color: var(--critical-color);
+        }
+        .alert-item.warning {
+            background-color: rgba(255, 165, 0, 0.1);
+            border-color: var(--warning-color);
+            color: var(--warning-color);
+        }
+        .alert-item.success {
+            background-color: rgba(0, 255, 0, 0.1);
+            border-color: var(--success-color);
+            color: var(--success-color);
+        }
+
+        /* Chart specific styling */
+        .chart-container {
+            height: 220px;
+            background-color: #1a1a1a;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .bar-chart-bar {
+            background-color: var(--primary-accent);
+            transition: height 0.5s ease-out;
+            border-radius: 2px 2px 0 0;
+            box-shadow: 0 0 5px var(--primary-accent);
+            position: relative;
+        }
+        .bar-chart-bar-label {
+            position: absolute;
+            bottom: -20px;
+            font-size: 0.65em;
+            color: var(--text-medium);
+            width: 100%;
+            text-align: center;
+        }
+        .bar-chart-bar-value {
+             position: absolute;
+             top: -18px;
+             font-size: 0.7em;
+             color: var(--text-light);
+             text-shadow: 0 0 3px var(--primary-accent);
+        }
+
+        .line-chart-line {
+            fill: none;
+            stroke: var(--secondary-accent);
+            stroke-width: 3;
+            transition: stroke-dashoffset 2s ease-out;
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            filter: drop-shadow(0 0 5px var(--secondary-accent));
+        }
+        .line-chart-point {
+            fill: var(--secondary-accent);
+            stroke: var(--bg-dark);
+            stroke-width: 2;
+            animation: fade-in 1s forwards;
+            opacity: 0;
+            filter: drop-shadow(0 0 3px var(--secondary-accent));
+        }
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Typewriter effect for headers */
+        .typewriter h2, .typewriter h3 {
+            overflow: hidden;
+            border-right: .05em solid var(--primary-accent);
+            white-space: nowrap;
+            margin: 0 auto;
+            letter-spacing: .08em;
+            animation:
+                typing 2.5s steps(40, end),
+                blink-caret .75s step-end infinite;
+            display: inline-block; /* Required for width to work */
+        }
+        @keyframes typing {
+            from { width: 0 }
+            to { width: 100% }
+        }
+        @keyframes blink-caret {
+            from, to { border-color: transparent }
+            50% { border-color: var(--primary-accent); }
+        }
+
+        /* Glitch effect for critical data */
+        .glitch {
+            animation: glitch 1s infinite alternate;
+        }
+        @keyframes glitch {
+            0% { text-shadow: 0.05em 0 0 var(--primary-accent), -0.05em 0 0 var(--secondary-accent); }
+            25% { text-shadow: -0.05em -0.025em 0 var(--primary-accent), 0.025em 0.05em 0 var(--secondary-accent); }
+            50% { text-shadow: 0.025em 0.05em 0 var(--primary-accent), -0.025em -0.05em 0 var(--secondary-accent); }
+            75% { text-shadow: -0.05em 0.025em 0 var(--primary-accent), 0.05em -0.025em 0 var(--secondary-accent); }
+            100% { text-shadow: 0 0 0 var(--primary-accent), 0 0 0 var(--secondary-accent); }
+        }
+
+        /* New AI Analysis Pulse */
+        .ai-pulse {
+            animation: pulse-border 1.5s infinite alternate;
+        }
+        @keyframes pulse-border {
+            0% { border-color: var(--primary-accent); box-shadow: 0 0 8px var(--primary-accent); }
+            100% { border-color: rgba(255, 0, 0, 0.5); box-shadow: 0 0 20px rgba(255, 0, 0, 0.8); }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="bg-grid"></div>
+
+    <header class="relative z-10 py-6 px-4 sm:px-8 bg-gray-950 shadow-lg border-b border-gray-800">
+        <div class="container mx-auto flex flex-col sm:flex-row justify-between items-center">
+            <div class="flex items-center mb-4 sm:mb-0">
+                <svg class="h-12 w-12 mr-3 text-red-500 text-glow animate-pulse" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2L1 21h22L12 2zm0 3.82L19.46 19H4.54L12 5.82zM11 10h2v4h-2zm0 5h2v2h-2z"/>
+                </svg>
+                <h1 class="text-4xl font-extrabold text-white text-glow">PHOENIX PROTOCOL</h1>
+                <span class="ml-4 text-xl font-light text-red-400 hidden md:block">Strategic Contracts Nexus</span>
+            </div>
+            <nav class="flex flex-wrap justify-center sm:justify-end space-x-4 sm:space-x-6 text-sm font-medium">
+                <a href="#" class="text-red-300 hover:text-white transition duration-300 rounded-md p-2 hover:bg-gray-800">Operational Dashboard</a>
+                <a href="#" class="text-red-300 hover:text-white transition duration-300 rounded-md p-2 hover:bg-gray-800">Threat Matrix</a>
+                <a href="#" class="text-red-300 hover:text-white transition duration-300 rounded-md p-2 hover:bg-gray-800">Intelligence Briefs</a>
+                <a href="#" class="text-red-300 hover:text-white transition duration-300 rounded-md p-2 hover:bg-gray-800">System Admin</a>
+                <button class="nexus-button">Secure Log-Out</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto px-4 sm:px-8 py-10 relative z-10 grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <aside class="lg:col-span-1 sidebar glow-border scanline-effect">
+            <h2 class="text-2xl font-semibold text-white mb-6 text-glow typewriter">SYSTEM STATUS :: ACTIVE</h2>
+
+            <div class="mb-8 ai-pulse nexus-card">
+                <h3 class="text-xl font-semibold text-red-400 mb-4">AI ANALYTICS ENGINE</h3>
+                <div id="ai-status" class="text-sm space-y-2">
+                    <p class="text-green-500 flex items-center"><span class="loader mr-2"></span> Module: Predictive Forensics [Online]</p>
+                    <p class="text-green-500 flex items-center"><span class="loader mr-2"></span> Module: Anomaly Detection [Online]</p>
+                    <p class="text-orange-400 flex items-center"><span class="loader mr-2"></span> Data Ingestion Rate: <span id="ingestion-rate">1.2 TB/hr</span></p>
+                    <p class="text-red-500 flex items-center"><span class="loader mr-2"></span> Threat Level: <span id="threat-level" class="glitch">ORANGE - ELEVATED</span></p>
+                </div>
+            </div>
+
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-red-400 mb-4">CRITICAL ALERT LOG</h3>
+                <div id="alerts-panel" class="space-y-3 custom-scrollbar h-48 overflow-y-auto">
+                    <div class="alert-item warning">
+                        <span class="font-bold">[WARNING]</span> Data sync latency: 5s. Reviewing.
+                    </div>
+                    <div class="alert-item critical">
+                        <span class="font-bold">[CRITICAL]</span> Unauthorized network probe detected. Source: 192.168.1.107.
+                    </div>
+                    <div class="alert-item success">
+                        <span class="font-bold">[INFO]</span> All security protocols confirmed GREEN.
+                    </div>
+                </div>
+            </div>
+            <div>
+                <h3 class="text-xl font-semibold text-red-400 mb-4">LIVE DATA STREAM</h3>
+                <div id="live-feed" class="bg-gray-900 p-4 rounded-lg text-sm h-48 overflow-y-auto custom-scrollbar scanline-effect">
+                    <p class="text-gray-500">INITIATING DATA RELAY...</p>
+                </div>
+            </div>
+        </aside>
+
+        <section class="lg:col-span-3">
+            <div class="nexus-card mb-8 p-6 glow-border">
+                <h2 class="text-2xl font-semibold text-white mb-4 text-glow">CONTRACT OVERSIGHT INTERFACE</h2>
+                <div class="flex flex-col md:flex-row gap-4">
+                    <input type="text" placeholder="QUERY: Contract ID, Entity, Sector..." class="flex-grow nexus-input" />
+                    <select class="nexus-input">
+                        <option value="">ALL SECTORS</option>
+                        <option value="defense">DEFENSE & AEROSPACE</option>
+                        <option value="it">CYBER & IT SOLUTIONS</option>
+                        <option value="health">BIO-MED & HEALTHCARE</option>
+                        <option value="energy">ENERGY & INFRASTRUCTURE</option>
+                        <option value="logistics">LOGISTICS & SUPPORT</option>
+                    </select>
+                    <button class="nexus-button">INITIATE SEARCH</button>
+                </div>
+            </div>
+
+            <div class="animated-line"></div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div class="nexus-card glow-border">
+                    <h3 class="text-xl font-semibold text-white mb-4">ACTIVE DEPLOYMENTS</h3>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="data-label">Total Engagements:</span>
+                        <span id="total-active" class="data-value text-green-400">12,450</span>
+                    </div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="data-label">Allocated Capital:</span>
+                        <span id="current-value" class="data-value text-green-400">$87.2B USD</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="data-label">Critical Priority:</span>
+                        <span id="critical-priority" class="data-value text-red-500">42%</span>
+                    </div>
+                </div>
+
+                <div class="nexus-card glow-border lg:col-span-2">
+                    <h3 class="text-xl font-semibold text-white mb-4">RECENT STRATEGIC AWARDS</h3>
+                    <ul id="recent-awards-list" class="space-y-3 h-32 overflow-y-auto custom-scrollbar">
+                        <li class="border-b border-gray-700 pb-2 last:border-b-0 text-gray-300">
+                            <p class="data-value text-sm text-primary-accent">CONTRACT-ID: DEFENSE-ALPHA-7892</p>
+                            <p class="text-xs text-gray-400">ENTITY: <span class="text-orange-400">Aegis Dynamics Corp.</span> | VALUE: <span class="text-green-400">$3.5B</span> | SECTOR: DEFENSE | DATE: 2025-05-25</p>
+                        </li>
+                        <li class="border-b border-gray-700 pb-2 last:border-b-0 text-gray-300">
+                            <p class="data-value text-sm text-primary-accent">CONTRACT-ID: CYBER-OMEGA-1234</p>
+                            <p class="text-xs text-gray-400">ENTITY: <span class="text-orange-400">Quantum Cyber Solutions</span> | VALUE: <span class="text-green-400">$800M</span> | SECTOR: IT | DATE: 2025-05-24</p>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="nexus-card glow-border lg:col-span-1">
+                    <h3 class="text-xl font-semibold text-white mb-4">CAPITAL ALLOCATION BY SECTOR</h3>
+                    <div id="sector-spending-chart" class="chart-container flex items-end gap-3">
+                        </div>
+                </div>
+
+                <div class="nexus-card glow-border lg:col-span-2">
+                    <h3 class="text-xl font-semibold text-white mb-4">THREAT LEVEL INDEX (LAST 6 MONTHS)</h3>
+                    <div class="chart-container">
+                        <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                            <polyline id="threat-trend-line" class="line-chart-line" points=""></polyline>
+                            </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nexus-card glow-border mb-8">
+                <h3 class="text-xl font-semibold text-white mb-4">TOP OPERATIONAL ENTITIES (FY2025)</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-gray-300">
+                        <thead>
+                            <tr class="border-b border-gray-700 text-red-400 uppercase">
+                                <th class="py-2 px-4">RANK</th>
+                                <th class="py-2 px-4">ENTITY NAME</th>
+                                <th class="py-2 px-4">TOTAL ALLOCATED</th>
+                                <th class="py-2 px-4">ACTIVE ENGAGEMENTS</th>
+                                <th class="py-2 px-4">PRIMARY SECTOR</th>
+                                <th class="py-2 px-4">PERFORMANCE RATING</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top-contractors-table">
+                            <tr class="border-b border-gray-800 hover:bg-gray-800 transition duration-200">
+                                <td class="py-2 px-4">1</td>
+                                <td class="py-2 px-4 text-orange-400">Lockheed Martin</td>
+                                <td class="py-2 px-4 text-green-400">$19.2B</td>
+                                <td class="py-2 px-4">320</td>
+                                <td class="py-2 px-4">Defense & Aerospace</td>
+                                <td class="py-2 px-4 text-green-500">A+</td>
+                            </tr>
+                            <tr class="border-b border-gray-800 hover:bg-gray-800 transition duration-200">
+                                <td class="py-2 px-4">2</td>
+                                <td class="py-2 px-4 text-orange-400">Raytheon Technologies</td>
+                                <td class="py-2 px-4 text-green-400">$14.5B</td>
+                                <td class="py-2 px-4">280</td>
+                                <td class="py-2 px-4">Defense & Electronics</td>
+                                <td class="py-2 px-4 text-green-500">A</td>
+                            </tr>
+                            <tr class="border-b border-gray-800 hover:bg-gray-800 transition duration-200">
+                                <td class="py-2 px-4">3</td>
+                                <td class="py-2 px-4 text-orange-400">Northrop Grumman</td>
+                                <td class="py-2 px-4 text-green-400">$11.8B</td>
+                                <td class="py-2 px-4">210</td>
+                                <td class="py-2 px-4">Aerospace Systems</td>
+                                <td class="py-2 px-4 text-green-500">A</td>
+                            </tr>
+                            <tr class="border-b border-gray-800 hover:bg-gray-800 transition duration-200">
+                                <td class="py-2 px-4">4</td>
+                                <td class="py-2 px-4 text-orange-400">Amazon Web Services</td>
+                                <td class="py-2 px-4 text-green-400">$9.1B</td>
+                                <td class="py-2 px-4">150</td>
+                                <td class="py-2 px-4">Cloud Computing & IT</td>
+                                <td class="py-2 px-4 text-green-500">A+</td>
+                            </tr>
+                            <tr class="border-b border-gray-800 hover:bg-gray-800 transition duration-200">
+                                <td class="py-2 px-4">5</td>
+                                <td class="py-2 px-4 text-orange-400">General Dynamics</td>
+                                <td class="py-2 px-4 text-green-400">$8.7B</td>
+                                <td class="py-2 px-4">190</td>
+                                <td class="py-2 px-4">Land Systems & Naval</td>
+                                <td class="py-2 px-4 text-yellow-500">B+</td>
+                            </tr>
+                            <tr class="border-b border-gray-800 hover:bg-gray-800 transition duration-200">
+                                <td class="py-2 px-4">6</td>
+                                <td class="py-2 px-4 text-orange-400">Pfizer Inc.</td>
+                                <td class="py-2 px-4 text-green-400">$6.2B</td>
+                                <td class="py-2 px-4">85</td>
+                                <td class="py-2 px-4">Bio-Med & Pharma</td>
+                                <td class="py-2 px-4 text-green-500">A-</td>
+                            </tr>
+                            <tr class="hover:bg-gray-800 transition duration-200">
+                                <td class="py-2 px-4">7</td>
+                                <td class="py-2 px-4 text-orange-400">Bechtel Group</td>
+                                <td class="py-2 px-4 text-green-400">$5.9B</td>
+                                <td class="py-2 px-4">120</td>
+                                <td class="py-2 px-4">Infrastructure & Energy</td>
+                                <td class="py-2 px-4 text-yellow-500">B</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="nexus-card glow-border mb-8 ai-pulse">
+                <h3 class="text-xl font-semibold text-white mb-4 text-glow">CONGRESSIONAL TRADING: CONFLICT MATRIX</h3>
+                <p class="text-sm text-gray-400 mb-6">Monitoring publicly disclosed financial transactions by members of Congress and their immediate families against active government contracts for potential conflict identification. Data updated per STOCK Act disclosure requirements.</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-lg font-semibold text-red-400 mb-3">RECENT PTR ALERTS (Periodic Transaction Reports)</h4>
+                        <ul id="congress-trades-list" class="space-y-3 h-48 overflow-y-auto custom-scrollbar">
+                            <li class="border-b border-gray-700 pb-2 last:border-b-0 text-gray-300">
+                                <p class="text-sm"><span class="font-bold text-green-400">BUY: $100K-250K</span> | TICKER: <span class="text-orange-400">LMT (Lockheed Martin)</span></p>
+                                <p class="text-xs text-gray-500">Member: Rep. J. Doe (D-CA) | Date: 2025-05-22 | Potential Conflict: Defense Committee member.</p>
+                            </li>
+                            <li class="border-b border-gray-700 pb-2 last:border-b-0 text-gray-300">
+                                <p class="text-sm"><span class="font-bold text-red-400">SELL: $50K-100K</span> | TICKER: <span class="text-orange-400">PFE (Pfizer)</span></p>
+                                <p class="text-xs text-gray-500">Member: Sen. A. Smith (R-TX) | Date: 2025-05-21 | Potential Conflict: Health Subcommittee member.</p>
+                            </li>
+                            <li class="border-b border-gray-700 pb-2 last:border-b-0 text-gray-300">
+                                <p class="text-sm"><span class="font-bold text-green-400">BUY: $1K-15K</span> | TICKER: <span class="text-orange-400">AMZN (Amazon)</span></p>
+                                <p class="text-xs text-gray-500">Member: Rep. M. Garcia (I-NY) | Date: 2025-05-20 | Potential Conflict: None evident.</p>
+                            </li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-semibold text-red-400 mb-3">CONFLICT OVERLAY (SIMULATED)</h4>
+                        <div class="bg-gray-900 p-4 rounded-lg h-48 overflow-y-auto custom-scrollbar">
+                            <p class="text-sm text-red-500 mb-2 font-bold">HIGH RISK: Member X owns shares in Defense Contractor Y, active on Armed Services Committee.</p>
+                            <p class="text-sm text-orange-400 mb-2 font-bold">MODERATE RISK: Member Z's spouse trades in Energy Co. A, while Member Z votes on energy policy.</p>
+                            <p class="text-sm text-green-500 mb-2">LOW RISK: Member Q holds diverse portfolio, no direct links to committee assignments.</p>
+                            <p class="text-xs text-gray-500 mt-4">Note: This module provides simulated analysis based on publicly available data. Further investigation required for definitive conflict assessment.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="relative z-10 py-6 px-4 sm:px-8 text-center text-gray-500 text-xs border-t border-gray-800 mt-10">
+        <p>&copy; 2025 PHOENIX PROTOCOL. All rights reserved. | Strategic Data Initiative | <span class="glitch">SECURITY LEVEL: ALPHA</span></p>
+        <p class="mt-2">Deployed by: U.S. National Intelligence Directorate (Simulated)</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const totalActiveSpan = document.getElementById('total-active');
+            const currentValueSpan = document.getElementById('current-value');
+            const criticalPrioritySpan = document.getElementById('critical-priority');
+            const ingestionRateSpan = document.getElementById('ingestion-rate');
+            const threatLevelSpan = document.getElementById('threat-level');
+            const liveFeedDiv = document.getElementById('live-feed');
+            const alertsPanel = document.getElementById('alerts-panel');
+            const recentAwardsList = document.getElementById('recent-awards-list');
+            const sectorSpendingChart = document.getElementById('sector-spending-chart');
+            const threatTrendLine = document.getElementById('threat-trend-line');
+            const congressTradesList = document.getElementById('congress-trades-list');
+
+            let activeContracts = 12450;
+            let currentValue = 87.2;
+            let criticalPriority = 42;
+            let ingestionRate = 1.2;
+            let threatLevel = 3; // 1-5 scale, 5 being highest
+
+            // Function to update main stats
+            function updateMainStats() {
+                activeContracts += Math.floor(Math.random() * 7) - 3; // +/- 3 contracts
+                currentValue += (Math.random() * 0.2 - 0.1); // +/- 0.1 Billion
+                criticalPriority = Math.min(60, Math.max(30, criticalPriority + Math.floor(Math.random() * 3) - 1)); // +/- 1%, capped
+                ingestionRate = (Math.random() * 0.5 + 1.0).toFixed(1); // 1.0 - 1.5 TB/hr
+                threatLevel = Math.min(5, Math.max(1, threatLevel + Math.floor(Math.random() * 3) - 1)); // +/- 1, capped
+
+                totalActiveSpan.textContent = activeContracts.toLocaleString();
+                currentValueSpan.textContent = `$${currentValue.toFixed(1)}B USD`;
+                criticalPrioritySpan.textContent = `${criticalPriority}%`;
+                ingestionRateSpan.textContent = `${ingestionRate} TB/hr`;
+
+                if (threatLevel >= 4) {
+                    threatLevelSpan.textContent = `CRITICAL - CODE RED (${threatLevel})`;
+                    threatLevelSpan.classList.add('glitch', 'text-red-500');
+                    threatLevelSpan.classList.remove('text-orange-400');
+                } else if (threatLevel === 3) {
+                    threatLevelSpan.textContent = `ELEVATED - ORANGE (${threatLevel})`;
+                    threatLevelSpan.classList.add('text-orange-400');
+                    threatLevelSpan.classList.remove('glitch', 'text-red-500');
+                } else {
+                    threatLevelSpan.textContent = `STABLE - GREEN (${threatLevel})`;
+                    threatLevelSpan.classList.add('text-green-500');
+                    threatLevelSpan.classList.remove('glitch', 'text-red-500', 'text-orange-400');
+                }
+            }
+
+            // Simulated live feed messages (more 'techy' and 'urgent')
+            const feedMessages = [
+                "SYSTEM: Core integrity scan complete. No anomalies.",
+                "INTELLIGENCE: New contract pipeline identified in Sector-7. Initiating deep-scan.",
+                "NETWORK: External probe detected. Origin masked. Flagging for advanced analysis.",
+                "DATASTREAM: Ingesting financial disclosures from Capitol Hill. Processing.",
+                "AI: Predictive model updating for Q3 defense procurements. Confidence: 92%.",
+                "ALERT: Minor data corruption in historical log. Self-correction initiated.",
+                "OPERATIONS: New entity 'CyberForge Labs' onboarded. High-priority clearance.",
+                "SYSTEM: Automated threat assessment: Stable. Monitoring external vectors.",
+                "FINANCIALS: Capital reallocation protocol initiated. Sector: Energy.",
+                "AI: Anomaly detected in Congressional Trading: Pattern deviation by Member R.",
+                "SECURE: Biometric authentication confirmed. Access granted: Level 5."
+            ];
+            let messageIndex = 0;
+
+            function addLiveFeedMessage() {
+                const p = document.createElement('p');
+                p.textContent = `[${new Date().toLocaleTimeString('en-GB')}] ${feedMessages[messageIndex]}`;
+                p.classList.add('text-gray-300', 'mb-1', 'opacity-0', 'animate-fade-in');
+                liveFeedDiv.prepend(p);
+                if (liveFeedDiv.children.length > 10) {
+                    liveFeedDiv.removeChild(liveFeedDiv.lastChild);
+                }
+                messageIndex = (messageIndex + 1) % feedMessages.length;
+            }
+
+            // Simulated recent awards (more diverse sectors)
+            const sampleAwards = [
+                { id: "DEFENSE-DELTA-0987", contractor: "Boeing Defense", agency: "DoD", value: "2.8B", sector: "Defense & Aerospace", date: "2025-05-26" },
+                { id: "IT-NEURON-5678", contractor: "Palantir Technologies", agency: "DoJ", value: "450M", sector: "Cyber & IT Solutions", date: "2025-05-26" },
+                { id: "HEALTH-GENOME-2345", contractor: "Johnson & Johnson", agency: "HHS", value: "720M", sector: "Bio-Med & Healthcare", date: "2025-05-25" },
+                { id: "ENERGY-GRID-9012", contractor: "NextEra Energy", agency: "DoE", value: "1.1B", sector: "Energy & Infrastructure", date: "2025-05-25" },
+                { id: "LOGI-EXPRESS-3456", contractor: "FedEx Government", agency: "GSA", value: "300M", sector: "Logistics & Support", date: "2025-05-24" },
+            ];
+            let awardCounter = 0;
+
+            function addRecentAward() {
+                const award = sampleAwards[awardCounter % sampleAwards.length];
+                const li = document.createElement('li');
+                li.classList.add('border-b', 'border-gray-700', 'pb-2', 'last:border-b-0', 'text-gray-300');
+                li.innerHTML = `
+                    <p class="data-value text-sm text-primary-accent">CONTRACT-ID: ${award.id}</p>
+                    <p class="text-xs text-gray-400">ENTITY: <span class="text-orange-400">${award.contractor}</span> | VALUE: <span class="text-green-400">$${award.value}</span> | SECTOR: ${award.sector} | DATE: ${award.date}</p>
+                `;
+                recentAwardsList.prepend(li);
+                if (recentAwardsList.children.length > 5) {
+                    recentAwardsList.removeChild(recentAwardsList.lastChild);
+                }
+                awardCounter++;
+            }
+
+            // Bar Chart Data (Spending by Sector)
+            const sectorData = [
+                { sector: "Defense", value: 45 },
+                { sector: "IT", value: 20 },
+                { sector: "Health", value: 15 },
+                { sector: "Energy", value: 10 },
+                { sector: "Logistics", value: 7 },
+                { sector: "Other", value: 3 }
+            ];
+
+            function drawBarChart() {
+                sectorSpendingChart.innerHTML = '';
+                const maxValue = Math.max(...sectorData.map(d => d.value));
+
+                sectorData.forEach(data => {
+                    const barHeight = (data.value / maxValue) * 100;
+                    const bar = document.createElement('div');
+                    bar.classList.add('bar-chart-bar', 'flex-grow', 'relative', 'flex', 'flex-col', 'items-center', 'justify-end');
+                    bar.style.height = `${barHeight}%`;
+                    bar.style.animation = `bar-grow 1s ease-out forwards`;
+                    bar.style.setProperty('--bar-height', `${barHeight}%`); // For animation if needed
+
+                    const valueSpan = document.createElement('span');
+                    valueSpan.classList.add('bar-chart-bar-value');
+                    valueSpan.textContent = `${data.value}%`;
+
+                    const labelDiv = document.createElement('div');
+                    labelDiv.classList.add('bar-chart-bar-label');
+                    labelDiv.textContent = data.sector;
+
+                    bar.appendChild(valueSpan);
+                    bar.appendChild(labelDiv);
+                    sectorSpendingChart.appendChild(bar);
+                });
+            }
+
+            // Line Chart Data (Threat Level Trend)
+            const threatTrendData = [
+                { month: 'Dec', value: 2 }, { month: 'Jan', value: 2.5 }, { month: 'Feb', value: 3 },
+                { month: 'Mar', value: 2.8 }, { month: 'Apr', value: 3.5 }, { month: 'May', value: 4 }
+            ];
+
+            function drawLineChart() {
+                const svg = document.querySelector('#threat-level-index-chart svg'); // Targeting the correct SVG
+                const polyline = document.getElementById('threat-trend-line');
+                const points = [];
+                const maxVal = 5; // Max threat level
+                const minVal = 1; // Min threat level
+                const range = maxVal - minVal;
+
+                // Clear existing circles
+                Array.from(svg.querySelectorAll('.line-chart-point')).forEach(circle => circle.remove());
+
+                threatTrendData.forEach((data, i) => {
+                    const x = (i / (threatTrendData.length - 1)) * 90 + 5; // Scale to 5-95 for padding
+                    const y = 100 - (((data.value - minVal) / range) * 80 + 10); // Scale to 10-90 range for padding
+
+                    points.push(`${x},${y}`);
+
+                    // Add circles for points
+                    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    circle.setAttribute('cx', x);
+                    circle.setAttribute('cy', y);
+                    circle.setAttribute('r', 2.5);
+                    circle.classList.add('line-chart-point');
+                    svg.appendChild(circle);
+                });
+
+                polyline.setAttribute('points', points.join(' '));
+
+                // Animate line drawing
+                const length = polyline.getTotalLength();
+                polyline.style.strokeDasharray = length;
+                polyline.style.strokeDashoffset = length;
+                polyline.getBoundingClientRect(); // Trigger reflow
+                polyline.style.strokeDashoffset = '0';
+            }
+
+            // Simulated congressional trading data
+            const congressTrades = [
+                { type: "BUY", value: "$50K-100K", ticker: "RTX (Raytheon)", member: "Sen. P. Jones (R-FL)", conflict: "Defense Committee", date: "2025-05-26" },
+                { type: "SELL", value: "$1M-5M", ticker: "GOOGL (Alphabet)", member: "Rep. S. Khan (D-CA)", conflict: "Tech Subcommittee", date: "2025-05-25" },
+                { type: "BUY", value: "$10K-50K", ticker: "PLTR (Palantir)", member: "Sen. A. Davis (I-OH)", conflict: "Intelligence Oversight", date: "2025-05-24" },
+                { type: "BUY", value: "$1K-15K", ticker: "CVX (Chevron)", member: "Rep. C. Miller (R-WY)", conflict: "Energy & Commerce", date: "2025-05-23" },
+                { type: "SELL", value: "$250K-500K", ticker: "JNJ (J&J)", member: "Sen. E. White (D-GA)", conflict: "Health Committee", date: "2025-05-22" },
+            ];
+            let congressTradeIndex = 0;
+
+            function addCongressTrade() {
+                const trade = congressTrades[congressTradeIndex % congressTrades.length];
+                const li = document.createElement('li');
+                li.classList.add('border-b', 'border-gray-700', 'pb-2', 'last:border-b-0', 'text-gray-300');
+                const typeClass = trade.type === "BUY" ? "text-green-400" : "text-red-400";
+                li.innerHTML = `
+                    <p class="text-sm"><span class="font-bold ${typeClass}">${trade.type}: ${trade.value}</span> | TICKER: <span class="text-orange-400">${trade.ticker}</span></p>
+                    <p class="text-xs text-gray-500">Member: ${trade.member} | Date: ${trade.date} | Potential Conflict: ${trade.conflict}.</p>
+                `;
+                congressTradesList.prepend(li);
+                if (congressTradesList.children.length > 5) { // Keep only last 5
+                    congressTradesList.removeChild(congressTradesList.lastChild);
+                }
+                congressTradeIndex++;
+            }
+
+            // Simulated alerts
+            const systemAlerts = [
+                { type: 'warning', message: 'Critical system resource usage detected: Disk I/O spike.' },
+                { type: 'critical', message: 'External entity attempting brute-force on authentication protocols. IP: 203.0.113.44.' },
+                { type: 'success', message: 'Database integrity check: All checksums verified. OK.' },
+                { type: 'warning', message: 'Data packet loss on secondary channel. Rerouting traffic.' },
+                { type: 'critical', message: 'Unauthorized API call from internal source. Tracing origin.' },
+                { type: 'success', message: 'Predictive analytics model re-calibrated. Accuracy improved by 0.7%.' },
+            ];
+            let alertIndex = 0;
+
+            function addSystemAlert() {
+                const alert = systemAlerts[alertIndex % systemAlerts.length];
+                const div = document.createElement('div');
+                div.classList.add('alert-item', alert.type);
+                div.innerHTML = `<span class="font-bold">[${alert.type.toUpperCase()}]</span> ${alert.message}`;
+                alertsPanel.prepend(div);
+                if (alertsPanel.children.length > 5) { // Keep only last 5 alerts
+                    alertsPanel.removeChild(alertsPanel.lastChild);
+                }
+                alertIndex = (alertIndex + 1) % systemAlerts.length;
+            }
+
+
+            // Initial draws and continuous updates
+            drawBarChart();
+            drawLineChart();
+            updateMainStats(); // Initial call
+
+            setInterval(updateMainStats, 3000); // Update main stats every 3 seconds
+            setInterval(addLiveFeedMessage, 2000); // Add feed message every 2 seconds
+            setInterval(addRecentAward, 4000); // Add new award every 4 seconds
+            setInterval(addCongressTrade, 6000); // Add new congress trade every 6 seconds
+            setInterval(addSystemAlert, 5000); // Add system alert every 5 seconds
+        });
+    </script>
+</body>
+</html>
