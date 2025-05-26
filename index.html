@@ -1,823 +1,1396 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PHOENIX PROTOCOL: Strategic Contracts Nexus</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <style>
-        /* Custom styles for the Weaponized/High-Contrast aesthetic */
-        :root {
-            --bg-dark: #050505;
-            --primary-accent: #FF0000; /* Aggressive Red */
-            --secondary-accent: #00FF00; /* Electric Green */
-            --tertiary-accent: #FFA500; /* Sharp Orange */
-            --text-light: #E0E0E0;
-            --text-medium: #A0A0A0;
-            --border-color: #222222;
-            --glow-color: rgba(255, 0, 0, 0.7);
-            --glow-color-light: rgba(255, 0, 0, 0.3);
-            --success-color: #00FF00;
-            --warning-color: #FFA500;
-            --critical-color: #FF0000;
-        }
+import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
+import * as THREE from 'three'; // Import Three.js
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-light);
-            overflow-x: hidden;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
+// --- Global Context for Theme and Settings ---
+const AppContext = createContext();
 
-        /* High-contrast, sharp borders with glow */
-        .glow-border {
-            border: 1px solid var(--border-color);
-            position: relative;
-            z-index: 1;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5); /* Inner shadow for depth */
-        }
-        .glow-border::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: inherit;
-            padding: 1px; /* Controls the thickness of the glow */
-            background: linear-gradient(45deg, var(--primary-accent), var(--secondary-accent), var(--tertiary-accent));
-            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            -webkit-mask-composite: xor;
-            mask-composite: exclude;
-            z-index: -1;
-            animation: glow-pulse-weaponized 3s infinite alternate;
-        }
+const AppProvider = ({ children }) => {
+    const [currentPage, setCurrentPage] = useState('dashboard');
+    const [colorTheme, setColorTheme] = useState('godlike-tech'); // 'godlike-tech', 'deep-ocean', 'emerald-matrix', 'cosmic-violet'
+    const [hiddenCompanies, setHiddenCompanies] = useState({}); // { 'Lockheed Martin': true }
 
-        /* Text glow for titles */
-        .text-glow {
-            text-shadow: 0 0 8px var(--glow-color), 0 0 15px var(--glow-color-light);
-        }
+    const changeColorTheme = (newTheme) => {
+        setColorTheme(newTheme);
+    };
 
-        /* Animation for glowing borders */
-        @keyframes glow-pulse-weaponized {
-            0% {
-                opacity: 0.7;
-                transform: scale(1);
-            }
-            50% {
-                opacity: 1;
-                transform: scale(1.005);
-                box-shadow: 0 0 15px var(--primary-accent);
-            }
-            100% {
-                opacity: 0.7;
-                transform: scale(1);
-            }
-        }
+    const toggleCompanyVisibility = (companyName) => {
+        setHiddenCompanies(prev => ({
+            ...prev,
+            [companyName]: !prev[companyName]
+        }));
+    };
 
-        /* Background grid/pattern */
-        .bg-grid {
-            background-image: linear-gradient(to right, #111 1px, transparent 1px),
-                              linear-gradient(to bottom, #111 1px, transparent 1px);
-            background-size: 30px 30px;
-            background-position: -1px -1px;
-            opacity: 0.1;
-            position: absolute;
-            inset: 0;
-            z-index: 0;
-            pointer-events: none; /* Allow clicks through */
-        }
+    const contextValue = {
+        currentPage,
+        setCurrentPage,
+        colorTheme,
+        changeColorTheme,
+        hiddenCompanies,
+        toggleCompanyVisibility
+    };
 
-        /* Scanline effect for certain panels */
-        .scanline-effect {
-            position: relative;
-        }
-        .scanline-effect::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.1) 50%);
-            background-size: 100% 2px;
-            pointer-events: none;
-            opacity: 0.5;
-        }
+    return (
+        <AppContext.Provider value={contextValue}>
+            {children}
+        </AppContext.Provider>
+    );
+};
 
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: var(--border-color);
-            border-radius: 3px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--primary-accent);
-            border-radius: 3px;
-            border: 1px solid var(--border-color);
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--tertiary-accent);
-        }
+// --- Utility Functions for Data Generation ---
+const generateRandomValue = (min, max) => (Math.random() * (max - min) + min);
+const generateRandomInt = (min, max) => Math.floor(generateRandomValue(min, max));
 
-        /* Input field styling */
-        .nexus-input {
-            background-color: #1a1a1a;
-            border: 1px solid var(--primary-accent);
-            color: var(--text-light);
-            padding: 10px 15px;
-            border-radius: 6px;
-            transition: all 0.3s ease;
-        }
-        .nexus-input:focus {
-            outline: none;
-            border-color: var(--secondary-accent);
-            box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.3);
-        }
+const formatCurrency = (value) => {
+    if (value >= 1000000000) {
+        return `$${(value / 1000000000).toFixed(1)}B USD`;
+    } else if (value >= 1000000) {
+        return `$${(value / 1000000).toFixed(1)}M USD`;
+    }
+    return `$${value.toLocaleString()} USD`;
+};
 
-        /* Button styling */
-        .nexus-button {
-            background: linear-gradient(45deg, var(--primary-accent), var(--tertiary-accent));
-            color: var(--bg-dark);
-            font-weight: bold;
-            padding: 10px 20px;
-            border-radius: 6px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 10px rgba(255, 0, 0, 0.4);
-            text-transform: uppercase;
-        }
-        .nexus-button:hover {
-            background: linear-gradient(45deg, var(--tertiary-accent), var(--primary-accent));
-            box-shadow: 0 6px 15px rgba(255, 165, 0, 0.6);
-            transform: translateY(-2px);
-        }
+// --- Color Palette Definitions (All Dark-Based) ---
+const colorPalettes = {
+    'godlike-tech': {
+        '--primary-accent': '#00C8FF', /* Electric Blue */
+        '--secondary-accent': '#00FF64', /* Neon Green */
+        '--tertiary-accent': '#9600FF', /* Cosmic Purple */
+        '--glow-color': 'rgba(0, 200, 255, 0.7)',
+        '--glow-color-light': 'rgba(0, 200, 255, 0.3)',
+        '--success-color': '#00FF00',
+        '--warning-color': '#FFA500',
+        '--critical-color': '#FF0032',
+        '--text-header-color': 'var(--primary-accent)',
+        '--text-value-color': 'var(--secondary-accent)',
+        '--text-secondary-value-color': 'var(--tertiary-accent)',
+        '--button-gradient-start': 'var(--primary-accent)',
+        '--button-gradient-end': 'var(--tertiary-accent)',
+        '--button-hover-gradient-start': 'var(--tertiary-accent)',
+        '--button-hover-gradient-end': 'var(--primary-accent)',
+        '--input-border-color': 'var(--primary-accent)',
+        '--input-focus-shadow': 'rgba(0, 255, 100, 0.3)',
+        '--bar-chart-color': 'var(--primary-accent)',
+        '--line-chart-color': 'var(--secondary-accent)',
+        '--globe-color': 'var(--tertiary-accent)',
+        '--globe-lines': 'var(--primary-accent)',
+        '--bg-main': '#050505',
+        '--text-primary': '#E0E0E0',
+        '--text-secondary': '#A0A0A0',
+        '--border-color': '#222222',
+        '--card-bg': 'rgba(15, 15, 15, 0.9)',
+        '--input-bg': '#1a1a1a',
+        '--sidebar-bg': 'rgba(10, 10, 10, 0.85)',
+        '--header-bg': '#0a0a0a',
+        '--table-hover-bg': '#1a1a1a',
+        '--table-border': '#333333',
+        '--chart-bg': '#1a1a1a',
+        '--scroll-track': '#1a1a1a',
+    },
+    'deep-ocean': {
+        '--primary-accent': '#007BFF', /* Deep Blue */
+        '--secondary-accent': '#00CED1', /* Dark Cyan */
+        '--tertiary-accent': '#4169E1', /* Royal Blue */
+        '--glow-color': 'rgba(0, 123, 255, 0.7)',
+        '--glow-color-light': 'rgba(0, 123, 255, 0.3)',
+        '--success-color': '#28A745',
+        '--warning-color': '#FFC107',
+        '--critical-color': '#DC3545',
+        '--text-header-color': 'var(--primary-accent)',
+        '--text-value-color': 'var(--secondary-accent)',
+        '--text-secondary-value-color': 'var(--tertiary-accent)',
+        '--button-gradient-start': 'var(--primary-accent)',
+        '--button-gradient-end': 'var(--tertiary-accent)',
+        '--button-hover-gradient-start': 'var(--tertiary-accent)',
+        '--button-hover-gradient-end': 'var(--primary-accent)',
+        '--input-border-color': 'var(--primary-accent)',
+        '--input-focus-shadow': 'rgba(0, 206, 209, 0.3)',
+        '--bar-chart-color': 'var(--primary-accent)',
+        '--line-chart-color': 'var(--secondary-accent)',
+        '--globe-color': 'var(--tertiary-accent)',
+        '--globe-lines': 'var(--primary-accent)',
+        '--bg-main': '#020A18', /* Even darker blue-ish background */
+        '--text-primary': '#D0E0F0',
+        '--text-secondary': '#8090A0',
+        '--border-color': '#1A2E4A',
+        '--card-bg': 'rgba(5, 15, 30, 0.9)',
+        '--input-bg': '#0A1E38',
+        '--sidebar-bg': 'rgba(0, 10, 20, 0.85)',
+        '--header-bg': '#020A18',
+        '--table-hover-bg': '#0A1E38',
+        '--table-border': '#1A2E4A',
+        '--chart-bg': '#0A1E38',
+        '--scroll-track': '#1A2E4A',
+    },
+    'emerald-matrix': {
+        '--primary-accent': '#28A745', /* Emerald Green */
+        '--secondary-accent': '#32CD32', /* Lime Green */
+        '--tertiary-accent': '#008000', /* Dark Green */
+        '--glow-color': 'rgba(40, 167, 69, 0.7)',
+        '--glow-color-light': 'rgba(40, 167, 69, 0.3)',
+        '--success-color': '#28A745',
+        '--warning-color': '#FFC107',
+        '--critical-color': '#DC3545',
+        '--text-header-color': 'var(--primary-accent)',
+        '--text-value-color': 'var(--secondary-accent)',
+        '--text-secondary-value-color': 'var(--tertiary-accent)',
+        '--button-gradient-start': 'var(--primary-accent)',
+        '--button-gradient-end': 'var(--tertiary-accent)',
+        '--button-hover-gradient-start': 'var(--tertiary-accent)',
+        '--button-hover-gradient-end': 'var(--primary-accent)',
+        '--input-border-color': 'var(--primary-accent)',
+        '--input-focus-shadow': 'rgba(50, 205, 50, 0.3)',
+        '--bar-chart-color': 'var(--primary-accent)',
+        '--line-chart-color': 'var(--secondary-accent)',
+        '--globe-color': 'var(--tertiary-accent)',
+        '--globe-lines': 'var(--primary-accent)',
+        '--bg-main': '#0A0A0A', /* Dark grey/black */
+        '--text-primary': '#C0F0C0', /* Light green text */
+        '--text-secondary': '#80A080',
+        '--border-color': '#1A3A1A',
+        '--card-bg': 'rgba(10, 25, 10, 0.9)',
+        '--input-bg': '#0A1A0A',
+        '--sidebar-bg': 'rgba(5, 15, 5, 0.85)',
+        '--header-bg': '#0A0A0A',
+        '--table-hover-bg': '#0A1A0A',
+        '--table-border': '#1A3A1A',
+        '--chart-bg': '#0A1A0A',
+        '--scroll-track': '#1A3A1A',
+    },
+    'cosmic-violet': {
+        '--primary-accent': '#6F42C1', /* Dark Violet */
+        '--secondary-accent': '#E83E8C', /* Pink Magenta */
+        '--tertiary-accent': '#8A2BE2', /* Blue Violet */
+        '--glow-color': 'rgba(111, 66, 193, 0.7)',
+        '--glow-color-light': 'rgba(111, 66, 193, 0.3)',
+        '--success-color': '#20C997',
+        '--warning-color': '#FD7E14',
+        '--critical-color': '#E00040',
+        '--text-header-color': 'var(--primary-accent)',
+        '--text-value-color': 'var(--secondary-accent)',
+        '--text-secondary-value-color': 'var(--tertiary-accent)',
+        '--button-gradient-start': 'var(--primary-accent)',
+        '--button-gradient-end': 'var(--tertiary-accent)',
+        '--button-hover-gradient-start': 'var(--tertiary-accent)',
+        '--button-hover-gradient-end': 'var(--primary-accent)',
+        '--input-border-color': 'var(--primary-accent)',
+        '--input-focus-shadow': 'rgba(232, 62, 140, 0.3)',
+        '--bar-chart-color': 'var(--primary-accent)',
+        '--line-chart-color': 'var(--secondary-accent)',
+        '--globe-color': 'var(--tertiary-accent)',
+        '--globe-lines': 'var(--primary-accent)',
+        '--bg-main': '#0F051A', /* Dark purple-ish background */
+        '--text-primary': '#F0E0FF',
+        '--text-secondary': '#A080B0',
+        '--border-color': '#2A103A',
+        '--card-bg': 'rgba(20, 5, 30, 0.9)',
+        '--input-bg': '#1A0A2A',
+        '--sidebar-bg': 'rgba(10, 0, 20, 0.85)',
+        '--header-bg': '#0F051A',
+        '--table-hover-bg': '#1A0A2A',
+        '--table-border': '#2A103A',
+        '--chart-bg': '#1A0A2A',
+        '--scroll-track': '#2A103A',
+    }
+};
 
-        /* Card styling */
-        .nexus-card {
-            background-color: rgba(15, 15, 15, 0.9);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 24px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-            transition: all 0.3s ease;
-        }
-        .nexus-card:hover {
-            border-color: var(--primary-accent);
-            box-shadow: 0 5px 20px rgba(255, 0, 0, 0.2);
-            transform: translateY(-2px);
-        }
+// --- Custom CSS Styles ---
+const globalStyles = `
+    /* Basic Reset & Font */
+    body {
+        font-family: 'Inter', sans-serif;
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        transition: background-color 0.5s ease, color 0.5s ease;
+    }
 
-        /* Data display */
-        .data-label {
-            color: var(--text-medium);
-            font-size: 0.85em;
-            margin-bottom: 4px;
-        }
-        .data-value {
-            font-size: 1.2em;
-            font-weight: 700;
-            color: var(--text-light);
-            text-shadow: 0 0 5px rgba(255, 255, 255, 0.1);
-        }
+    /* Dynamic Theme Variables - Applied by JS */
+    body {
+        background-color: var(--bg-main);
+        color: var(--text-primary);
+    }
 
-        /* Animated line for visual separation */
-        .animated-line {
-            height: 2px;
-            background: linear-gradient(to right, transparent, var(--secondary-accent), transparent);
-            width: 0%;
-            animation: expand-line 1.5s forwards ease-out;
-            margin: 20px auto;
-        }
+    /* High-contrast, sharp borders with glow */
+    .glow-border {
+        border: 1px solid var(--border-color);
+        position: relative;
+        z-index: 1;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.5); /* Inner shadow for depth */
+    }
+    .glow-border::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        padding: 1px; /* Controls the thickness of the glow */
+        background: linear-gradient(45deg, var(--primary-accent), var(--secondary-accent), var(--tertiary-accent));
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        z-index: -1;
+        animation: glow-pulse-weaponized 3s infinite alternate;
+    }
 
-        @keyframes expand-line {
-            from { width: 0%; }
-            to { width: 100%; }
-        }
+    /* Text glow for titles */
+    .text-glow {
+        text-shadow: 0 0 8px var(--glow-color), 0 0 15px var(--glow-color-light);
+    }
 
-        /* Loader/Spinner effect (simulated) */
-        .loader {
-            border: 4px solid rgba(255, 0, 0, 0.2);
-            border-top: 4px solid var(--primary-accent);
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
+    /* Animation for glowing borders */
+    @keyframes glow-pulse-weaponized {
+        0% {
+            opacity: 0.7;
+            transform: scale(1);
         }
+        50% {
+            opacity: 1;
+            transform: scale(1.005);
+            box-shadow: 0 0 15px var(--primary-accent);
+        }
+        100% {
+            opacity: 0.7;
+            transform: scale(1);
+        }
+    }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+    /* Background grid/pattern */
+    .bg-grid {
+        background-image: linear-gradient(to right, #111 1px, transparent 1px),
+                          linear-gradient(to bottom, #111 1px, transparent 1px);
+        background-size: 30px 30px;
+        background-position: -1px -1px;
+        opacity: 0.1;
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none; /* Allow clicks through */
+    }
 
-        /* Sidebar & Alert styling */
-        .sidebar {
-            background-color: rgba(10, 10, 10, 0.85);
-            border-right: 1px solid var(--border-color);
-            padding: 24px;
-            border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
-        }
+    /* Scanline effect for certain panels */
+    .scanline-effect {
+        position: relative;
+    }
+    .scanline-effect::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.1) 50%);
+        background-size: 100% 2px;
+        pointer-events: none;
+        opacity: 0.5;
+    }
 
-        .alert-item {
-            background-color: rgba(255, 0, 0, 0.1);
-            border-left: 3px solid var(--critical-color);
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 10px;
-            font-size: 0.85em;
-            color: var(--critical-color);
-        }
-        .alert-item.warning {
-            background-color: rgba(255, 165, 0, 0.1);
-            border-color: var(--warning-color);
-            color: var(--warning-color);
-        }
-        .alert-item.success {
-            background-color: rgba(0, 255, 0, 0.1);
-            border-color: var(--success-color);
-            color: var(--success-color);
-        }
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+        background: var(--scroll-track);
+        border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: var(--primary-accent);
+        border-radius: 3px;
+        border: 1px solid var(--scroll-track);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--tertiary-accent);
+    }
 
-        /* Chart specific styling */
-        .chart-container {
-            height: 220px;
-            background-color: #1a1a1a;
-            border-radius: 8px;
-            padding: 15px;
-        }
+    /* Input field styling */
+    .nexus-input {
+        background-color: var(--input-bg);
+        border: 1px solid var(--input-border-color);
+        color: var(--text-primary);
+        padding: 10px 15px;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+    }
+    .nexus-input:focus {
+        outline: none;
+        border-color: var(--secondary-accent);
+        box-shadow: 0 0 0 2px var(--input-focus-shadow);
+    }
 
-        .bar-chart-bar {
-            background-color: var(--primary-accent);
-            transition: height 0.5s ease-out;
-            border-radius: 2px 2px 0 0;
-            box-shadow: 0 0 5px var(--primary-accent);
-            position: relative;
-        }
-        .bar-chart-bar-label {
-            position: absolute;
-            bottom: -20px;
-            font-size: 0.65em;
-            color: var(--text-medium);
-            width: 100%;
-            text-align: center;
-        }
-        .bar-chart-bar-value {
-             position: absolute;
-             top: -18px;
-             font-size: 0.7em;
-             color: var(--text-light);
-             text-shadow: 0 0 3px var(--primary-accent);
-        }
+    /* Button styling */
+    .nexus-button {
+        background: linear-gradient(45deg, var(--button-gradient-start), var(--button-gradient-end));
+        color: var(--bg-main); /* Text color for buttons, using main background for contrast */
+        font-weight: bold;
+        padding: 10px 20px;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+        text-transform: uppercase;
+    }
+    .nexus-button:hover {
+        background: linear-gradient(45deg, var(--button-hover-gradient-start), var(--button-hover-gradient-end));
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.6);
+        transform: translateY(-2px);
+    }
 
-        .line-chart-line {
-            fill: none;
-            stroke: var(--secondary-accent);
-            stroke-width: 3;
-            transition: stroke-dashoffset 2s ease-out;
-            stroke-dasharray: 1000;
-            stroke-dashoffset: 1000;
-            filter: drop-shadow(0 0 5px var(--secondary-accent));
-        }
-        .line-chart-point {
-            fill: var(--secondary-accent);
-            stroke: var(--bg-dark);
-            stroke-width: 2;
-            animation: fade-in 1s forwards;
-            opacity: 0;
-            filter: drop-shadow(0 0 3px var(--secondary-accent));
-        }
-        @keyframes fade-in {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
+    /* Card styling */
+    .nexus-card {
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        transition: all 0.3s ease;
+    }
+    .nexus-card:hover {
+        border-color: var(--primary-accent);
+        box-shadow: 0 5px 20px var(--glow-color-light);
+        transform: translateY(-2px);
+    }
 
-        /* Typewriter effect for headers */
-        .typewriter h2, .typewriter h3 {
-            overflow: hidden;
-            border-right: .05em solid var(--primary-accent);
-            white-space: nowrap;
-            margin: 0 auto;
-            letter-spacing: .08em;
-            animation:
-                typing 2.5s steps(40, end),
-                blink-caret .75s step-end infinite;
-            display: inline-block; /* Required for width to work */
-        }
-        @keyframes typing {
-            from { width: 0 }
-            to { width: 100% }
-        }
-        @keyframes blink-caret {
-            from, to { border-color: transparent }
-            50% { border-color: var(--primary-accent); }
-        }
+    /* Data display */
+    .data-label {
+        color: var(--text-secondary);
+        font-size: 0.85em;
+        margin-bottom: 4px;
+    }
+    .data-value {
+        font-size: 1.2em;
+        font-weight: 700;
+        color: var(--text-value-color);
+        text-shadow: 0 0 5px rgba(255, 255, 255, 0.1);
+    }
 
-        /* Glitch effect for critical data */
-        .glitch {
-            animation: glitch 1s infinite alternate;
-        }
-        @keyframes glitch {
-            0% { text-shadow: 0.05em 0 0 var(--primary-accent), -0.05em 0 0 var(--secondary-accent); }
-            25% { text-shadow: -0.05em -0.025em 0 var(--primary-accent), 0.025em 0.05em 0 var(--secondary-accent); }
-            50% { text-shadow: 0.025em 0.05em 0 var(--primary-accent), -0.025em -0.05em 0 var(--secondary-accent); }
-            75% { text-shadow: -0.05em 0.025em 0 var(--primary-accent), 0.05em -0.025em 0 var(--secondary-accent); }
-            100% { text-shadow: 0 0 0 var(--primary-accent), 0 0 0 var(--secondary-accent); }
-        }
+    /* Animated line for visual separation */
+    .animated-line {
+        height: 2px;
+        background: linear-gradient(to right, transparent, var(--secondary-accent), transparent);
+        width: 0%;
+        animation: expand-line 1.5s forwards ease-out;
+        margin: 20px auto;
+    }
 
-        /* New AI Analysis Pulse */
-        .ai-pulse {
-            animation: pulse-border 1.5s infinite alternate;
-        }
-        @keyframes pulse-border {
-            0% { border-color: var(--primary-accent); box-shadow: 0 0 8px var(--primary-accent); }
-            100% { border-color: rgba(255, 0, 0, 0.5); box-shadow: 0 0 20px rgba(255, 0, 0, 0.8); }
-        }
-    </style>
-</head>
-<body class="min-h-screen">
-    <div class="bg-grid"></div>
+    @keyframes expand-line {
+        from { width: 0%; }
+        to { width: 100%; }
+    }
 
-    <header class="relative z-10 py-6 px-4 sm:px-8 bg-gray-950 shadow-lg border-b border-gray-800">
-        <div class="container mx-auto flex flex-col sm:flex-row justify-between items-center">
-            <div class="flex items-center mb-4 sm:mb-0">
-                <svg class="h-12 w-12 mr-3 text-red-500 text-glow animate-pulse" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2L1 21h22L12 2zm0 3.82L19.46 19H4.54L12 5.82zM11 10h2v4h-2zm0 5h2v2h-2z"/>
-                </svg>
-                <h1 class="text-4xl font-extrabold text-white text-glow">PHOENIX PROTOCOL</h1>
-                <span class="ml-4 text-xl font-light text-red-400 hidden md:block">Strategic Contracts Nexus</span>
+    /* Loader/Spinner effect (simulated) */
+    .loader {
+        border: 4px solid rgba(255, 0, 0, 0.2);
+        border-top: 4px solid var(--primary-accent);
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Sidebar styling */
+    .sidebar {
+        background-color: var(--sidebar-bg);
+        border-right: 1px solid var(--border-color);
+        padding: 24px;
+        border-radius: 8px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Chart specific styling */
+    .chart-container {
+        height: 220px;
+        background-color: var(--chart-bg);
+        border-radius: 8px;
+        padding: 15px;
+    }
+
+    .bar-chart-bar {
+        background-color: var(--bar-chart-color);
+        transition: height 0.5s ease-out;
+        border-radius: 2px 2px 0 0;
+        box-shadow: 0 0 5px var(--bar-chart-color);
+        position: relative;
+    }
+    .bar-chart-bar-label {
+        position: absolute;
+        bottom: -20px;
+        font-size: 0.65em;
+        color: var(--text-secondary);
+        width: 100%;
+        text-align: center;
+    }
+    .bar-chart-bar-value {
+         position: absolute;
+         top: -18px;
+         font-size: 0.7em;
+         color: var(--text-primary);
+         text-shadow: 0 0 3px var(--bar-chart-color);
+    }
+
+    .line-chart-line {
+        fill: none;
+        stroke: var(--line-chart-color);
+        stroke-width: 3;
+        transition: stroke-dashoffset 2s ease-out;
+        stroke-dasharray: 1000;
+        stroke-dashoffset: 1000;
+        filter: drop-shadow(0 0 5px var(--line-chart-color));
+    }
+    .line-chart-point {
+        fill: var(--line-chart-color);
+        stroke: var(--bg-main);
+        stroke-width: 2;
+        animation: fade-in 1s forwards;
+        opacity: 0;
+        filter: drop-shadow(0 0 3px var(--line-chart-color));
+    }
+    @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    /* Typewriter effect for headers */
+    .typewriter h2, .typewriter h3 {
+        overflow: hidden;
+        border-right: .05em solid var(--primary-accent);
+        white-space: nowrap;
+        margin: 0 auto;
+        letter-spacing: .08em;
+        animation:
+            typing 2.5s steps(40, end),
+            blink-caret .75s step-end infinite;
+        display: inline-block; /* Required for width to work */
+    }
+    @keyframes typing {
+        from { width: 0 }
+        to { width: 100% }
+    }
+    @keyframes blink-caret {
+        from, to { border-color: transparent }
+        50% { border-color: var(--primary-accent); }
+    }
+
+    /* Glitch effect for critical data */
+    .glitch {
+        animation: glitch 1s infinite alternate;
+    }
+    @keyframes glitch {
+        0% { text-shadow: 0.05em 0 0 var(--critical-color), -0.05em 0 0 var(--warning-color); }
+        25% { text-shadow: -0.05em -0.025em 0 var(--critical-color), 0.025em 0.05em 0 var(--warning-color); }
+        50% { text-shadow: 0.025em 0.05em 0 var(--critical-color), -0.025em -0.05em 0 var(--warning-color); }
+        75% { text-shadow: -0.05em 0.025em 0 var(--critical-color), 0.05em -0.025em 0 var(--warning-color); }
+        100% { text-shadow: 0 0 0 var(--critical-color), 0 0 0 var(--warning-color); }
+    }
+
+    /* New AI Analysis Pulse */
+    .ai-pulse {
+        animation: pulse-border 1.5s infinite alternate;
+    }
+    @keyframes pulse-border {
+        0% { border-color: var(--primary-accent); box-shadow: 0 0 8px var(--primary-accent); }
+        100% { border-color: rgba(0, 200, 255, 0.5); box-shadow: 0 0 20px rgba(0, 200, 255, 0.8); }
+    }
+
+    /* Custom scrollbar for specific elements */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: var(--scroll-track);
+        border-radius: 3px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: var(--primary-accent);
+        border-radius: 3px;
+        border: 1px solid var(--scroll-track);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: var(--tertiary-accent);
+    }
+
+    /* Modal styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+    .modal-content {
+        background: var(--card-bg);
+        border: 1px solid var(--primary-accent);
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.7);
+        width: 90%;
+        max-width: 400px;
+        text-align: center;
+    }
+    .modal-input {
+        width: 100%;
+        margin-bottom: 15px;
+    }
+    .modal-button {
+        background: linear-gradient(45deg, var(--primary-accent), var(--tertiary-accent));
+        color: var(--bg-main);
+        font-weight: bold;
+        padding: 10px 20px;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+        text-transform: uppercase;
+        width: 100%;
+    }
+    .modal-button:hover {
+        background: linear-gradient(45deg, var(--tertiary-accent), var(--primary-accent));
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.6);
+        transform: translateY(-2px);
+    }
+    .modal-error {
+        color: var(--critical-color);
+        margin-top: 10px;
+        font-size: 0.9em;
+    }
+`;
+
+// Inject global styles
+const styleSheet = document.createElement("style");
+styleSheet.type = "text/css";
+styleSheet.innerText = globalStyles;
+document.head.appendChild(styleSheet);
+
+
+// --- Components ---
+
+// Header Component
+const Header = () => {
+    const { setCurrentPage } = useContext(AppContext);
+    const [showLoginModal, setShowLoginModal] = useState(false);
+
+    const handleAdminClick = () => {
+        setShowLoginModal(true);
+    };
+
+    const handleLogin = (username, password) => {
+        // !!! SECURITY WARNING: This is a simulated client-side login for demonstration ONLY.
+        // !!! NEVER use this for real-world authentication. Credentials are hardcoded.
+        if (username === 'admin' && password === 'admin') {
+            setCurrentPage('settings');
+            setShowLoginModal(false);
+            return true;
+        }
+        return false;
+    };
+
+    return (
+        <header className="relative z-10 py-6 px-4 sm:px-8 shadow-lg border-b bg-header-bg border-gray-800">
+            <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center">
+                <div className="flex items-center mb-4 sm:mb-0">
+                    <svg className="h-12 w-12 mr-3 text-glow animate-pulse text-primary-accent" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2L1 21h22L12 2zm0 3.82L19.46 19H4.54L12 5.82zM11 10h2v4h-2zm0 5h2v2h-2z"/>
+                    </svg>
+                    <h1 className="text-4xl font-extrabold text-white text-glow">PHOENIX PROTOCOL</h1>
+                    <span className="ml-4 text-xl font-light hidden md:block text-primary-accent">Strategic Contracts Nexus</span>
+                </div>
+                <nav className="flex flex-wrap justify-center sm:justify-end space-x-4 sm:space-x-6 text-sm font-medium">
+                    <button onClick={() => setCurrentPage('dashboard')} className="rounded-md p-2 transition duration-300 text-primary-accent hover:text-white hover:bg-gray-800">Operational Dashboard</button>
+                    <button onClick={() => setCurrentPage('congressional-trading')} className="rounded-md p-2 transition duration-300 text-primary-accent hover:text-white hover:bg-gray-800">Congressional Trading</button>
+                    <button onClick={handleAdminClick} className="rounded-md p-2 transition duration-300 text-primary-accent hover:text-white hover:bg-gray-800 font-bold border border-primary-accent px-4 py-2 rounded-lg hover:bg-primary-accent hover:text-bg-main">System Admin</button>
+                    <button className="nexus-button">Secure Log-Out</button>
+                </nav>
             </div>
-            <nav class="flex flex-wrap justify-center sm:justify-end space-x-4 sm:space-x-6 text-sm font-medium">
-                <a href="#" class="text-red-300 hover:text-white transition duration-300 rounded-md p-2 hover:bg-gray-800">Operational Dashboard</a>
-                <a href="#" class="text-red-300 hover:text-white transition duration-300 rounded-md p-2 hover:bg-gray-800">Threat Matrix</a>
-                <a href="#" class="text-red-300 hover:text-white transition duration-300 rounded-md p-2 hover:bg-gray-800">Intelligence Briefs</a>
-                <a href="#" class="text-red-300 hover:text-white transition duration-300 rounded-md p-2 hover:bg-gray-800">System Admin</a>
-                <button class="nexus-button">Secure Log-Out</button>
-            </nav>
+            {showLoginModal && <LoginModal onLogin={handleLogin} onClose={() => setShowLoginModal(false)} />}
+        </header>
+    );
+};
+
+// Login Modal Component
+const LoginModal = ({ onLogin, onClose }) => {
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!onLogin(username, password)) {
+            setError('Invalid credentials. Access denied.');
+        }
+    };
+
+    return (
+        <div className="modal-overlay">
+            <div className="modal-content">
+                <h3 className="text-xl font-semibold mb-6 text-primary-accent">ADMIN ACCESS REQUIRED</h3>
+                <form onSubmit={handleSubmit}>
+                    <input
+                        type="text"
+                        placeholder="Username"
+                        className="nexus-input modal-input"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        required
+                    />
+                    <input
+                        type="password"
+                        placeholder="Password"
+                        className="nexus-input modal-input"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                    />
+                    {error && <p className="modal-error">{error}</p>}
+                    <button type="submit" className="modal-button mt-4">Login</button>
+                    <button type="button" onClick={onClose} className="modal-button mt-2 bg-gray-700 hover:bg-gray-600" style={{background: 'none', boxShadow: 'none', color: 'var(--text-primary)'}}>Cancel</button>
+                </form>
+                <p className="text-xs text-gray-500 mt-4">
+                    <span className="font-bold text-critical-color">DEMO ONLY:</span> Use 'admin' for both username and password.
+                </p>
+            </div>
         </div>
-    </header>
+    );
+};
 
-    <main class="flex-grow container mx-auto px-4 sm:px-8 py-10 relative z-10 grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <aside class="lg:col-span-1 sidebar glow-border scanline-effect">
-            <h2 class="text-2xl font-semibold text-white mb-6 text-glow typewriter">SYSTEM STATUS :: ACTIVE</h2>
 
-            <div class="mb-8 ai-pulse nexus-card">
-                <h3 class="text-xl font-semibold text-red-400 mb-4">AI ANALYTICS ENGINE</h3>
-                <div id="ai-status" class="text-sm space-y-2">
-                    <p class="text-green-500 flex items-center"><span class="loader mr-2"></span> Module: Predictive Forensics [Online]</p>
-                    <p class="text-green-500 flex items-center"><span class="loader mr-2"></span> Module: Anomaly Detection [Online]</p>
-                    <p class="text-orange-400 flex items-center"><span class="loader mr-2"></span> Data Ingestion Rate: <span id="ingestion-rate">1.2 TB/hr</span></p>
-                    <p class="text-red-500 flex items-center"><span class="loader mr-2"></span> Threat Level: <span id="threat-level" class="glitch">ORANGE - ELEVATED</span></p>
+// Sidebar Component
+const Sidebar = ({
+    totalActive, currentValue, criticalPriority,
+    ingestionRate, threatLevel, liveFeedMessages
+}) => {
+    const { colorTheme } = useContext(AppContext);
+
+    return (
+        <aside className="lg:col-span-1 sidebar glow-border scanline-effect bg-sidebar-bg border-border-color">
+            <h2 className="text-2xl font-semibold mb-6 text-glow typewriter text-white">SYSTEM STATUS :: ACTIVE</h2>
+
+            <div className="mb-8 ai-pulse nexus-card">
+                <h3 className="text-xl font-semibold mb-4 text-primary-accent">AI ANALYTICS ENGINE</h3>
+                <div id="ai-status" className="text-sm space-y-2">
+                    <p className="text-green-500 flex items-center"><span className="loader mr-2"></span> Module: Predictive Forensics [Online]</p>
+                    <p className="text-green-500 flex items-center"><span className="loader mr-2"></span> Module: Anomaly Detection [Online]</p>
+                    <p className="text-orange-400 flex items-center"><span className="loader mr-2"></span> Data Ingestion Rate: <span id="ingestion-rate">{ingestionRate} TB/hr</span></p>
+                    <p className={`flex items-center ${threatLevel >= 4 ? 'text-critical-color glitch' : (threatLevel === 3 ? 'text-warning-color' : 'text-success-color')}`}>
+                        <span className="loader mr-2"></span> Threat Level: <span id="threat-level">{threatLevel >= 4 ? `CRITICAL - CODE RED (${threatLevel})` : (threatLevel === 3 ? `ELEVATED - ORANGE (${threatLevel})` : `STABLE - GREEN (${threatLevel})`)}</span>
+                    </p>
                 </div>
             </div>
 
-            <div class="mb-8">
-                <h3 class="text-xl font-semibold text-red-400 mb-4">CRITICAL ALERT LOG</h3>
-                <div id="alerts-panel" class="space-y-3 custom-scrollbar h-48 overflow-y-auto">
-                    <div class="alert-item warning">
-                        <span class="font-bold">[WARNING]</span> Data sync latency: 5s. Reviewing.
-                    </div>
-                    <div class="alert-item critical">
-                        <span class="font-bold">[CRITICAL]</span> Unauthorized network probe detected. Source: 192.168.1.107.
-                    </div>
-                    <div class="alert-item success">
-                        <span class="font-bold">[INFO]</span> All security protocols confirmed GREEN.
-                    </div>
-                </div>
-            </div>
             <div>
-                <h3 class="text-xl font-semibold text-red-400 mb-4">LIVE DATA STREAM</h3>
-                <div id="live-feed" class="bg-gray-900 p-4 rounded-lg text-sm h-48 overflow-y-auto custom-scrollbar scanline-effect">
-                    <p class="text-gray-500">INITIATING DATA RELAY...</p>
+                <h3 className="text-xl font-semibold mb-4 text-primary-accent">LIVE DATA STREAM</h3>
+                <div id="live-feed" className="p-4 rounded-lg text-sm h-48 overflow-y-auto custom-scrollbar scanline-effect bg-gray-900">
+                    {liveFeedMessages.map((msg, index) => (
+                        <p key={index} className="mb-1 opacity-0 animate-fade-in text-gray-300">{msg}</p>
+                    ))}
                 </div>
             </div>
         </aside>
+    );
+};
 
-        <section class="lg:col-span-3">
-            <div class="nexus-card mb-8 p-6 glow-border">
-                <h2 class="text-2xl font-semibold text-white mb-4 text-glow">CONTRACT OVERSIGHT INTERFACE</h2>
-                <div class="flex flex-col md:flex-row gap-4">
-                    <input type="text" placeholder="QUERY: Contract ID, Entity, Sector..." class="flex-grow nexus-input" />
-                    <select class="nexus-input">
-                        <option value="">ALL SECTORS</option>
-                        <option value="defense">DEFENSE & AEROSPACE</option>
-                        <option value="it">CYBER & IT SOLUTIONS</option>
-                        <option value="health">BIO-MED & HEALTHCARE</option>
-                        <option value="energy">ENERGY & INFRASTRUCTURE</option>
-                        <option value="logistics">LOGISTICS & SUPPORT</option>
-                    </select>
-                    <button class="nexus-button">INITIATE SEARCH</button>
-                </div>
-            </div>
+// Bar Chart Component
+const BarChart = ({ data }) => {
+    const maxValue = Math.max(...data.map(d => d.value));
 
-            <div class="animated-line"></div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                <div class="nexus-card glow-border">
-                    <h3 class="text-xl font-semibold text-white mb-4">ACTIVE DEPLOYMENTS</h3>
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="data-label">Total Engagements:</span>
-                        <span id="total-active" class="data-value text-green-400">12,450</span>
+    return (
+        <div id="sector-spending-chart" className="chart-container flex items-end gap-3 bg-chart-bg">
+            {data.map((item, index) => {
+                const barHeight = (item.value / maxValue) * 100;
+                return (
+                    <div
+                        key={index}
+                        className="bar-chart-bar flex-grow relative flex flex-col items-center justify-end"
+                        style={{ height: `${barHeight}%` }}
+                    >
+                        <span className="bar-chart-bar-value">{item.value}%</span>
+                        <div className="bar-chart-bar-label">{item.sector}</div>
                     </div>
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="data-label">Allocated Capital:</span>
-                        <span id="current-value" class="data-value text-green-400">$87.2B USD</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="data-label">Critical Priority:</span>
-                        <span id="critical-priority" class="data-value text-red-500">42%</span>
+                );
+            })}
+        </div>
+    );
+};
+
+// Line Chart Component
+const LineChart = ({ data }) => {
+    const maxVal = 5; // Max threat level
+    const minVal = 1; // Min threat level
+    const range = maxVal - minVal;
+
+    const points = data.map((d, i) => {
+        const x = (i / (data.length - 1)) * 90 + 5; // Scale to 5-95 for padding
+        const y = 100 - (((d.value - minVal) / range) * 80 + 10); // Scale to 10-90 range for padding
+        return `${x},${y}`;
+    }).join(' ');
+
+    return (
+        <div className="chart-container bg-chart-bg">
+            <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <polyline className="line-chart-line" points={points}></polyline>
+                {data.map((d, i) => {
+                    const x = (i / (data.length - 1)) * 90 + 5;
+                    const y = 100 - (((d.value - minVal) / range) * 80 + 10);
+                    return (
+                        <circle key={i} cx={x} cy={y} r="2.5" className="line-chart-point"></circle>
+                    );
+                })}
+            </svg>
+        </div>
+    );
+};
+
+// 3D Globe Component
+const Globe3D = () => {
+    const mountRef = useRef(null);
+    const { colorTheme } = useContext(AppContext);
+
+    useEffect(() => {
+        const currentMount = mountRef.current;
+        if (!currentMount) return;
+
+        // Scene, Camera, Renderer
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, currentMount.clientWidth / currentMount.clientHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
+        currentMount.appendChild(renderer.domElement);
+
+        // Globe
+        const geometry = new THREE.SphereGeometry(1.5, 32, 32);
+        const material = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(colorPalettes[colorTheme]['--globe-color']),
+            wireframe: true,
+            transparent: true,
+            opacity: 0.7
+        });
+        const globe = new THREE.Mesh(geometry, material);
+        scene.add(globe);
+
+        // Simulated "connections" or "data flows"
+        const numConnections = 20;
+        const connectionColor = new THREE.Color(colorPalettes[colorTheme]['--globe-lines']);
+        const connections = [];
+
+        for (let i = 0; i < numConnections; i++) {
+            const startLat = generateRandomValue(-90, 90);
+            const startLon = generateRandomValue(-180, 180);
+            const endLat = generateRandomValue(-90, 90);
+            const endLon = generateRandomValue(-180, 180);
+
+            const startPoint = latLonToCartesian(startLat, startLon, 1.5);
+            const endPoint = latLonToCartesian(endLat, endLon, 1.5);
+
+            const curve = new THREE.LineCurve3(startPoint, endPoint);
+            const curveGeometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(50));
+            const curveMaterial = new THREE.LineBasicMaterial({ color: connectionColor, transparent: true, opacity: 0.5 });
+            const line = new THREE.Line(curveGeometry, curveMaterial);
+            scene.add(line);
+            connections.push(line);
+        }
+
+        // Convert lat/lon to Cartesian coordinates
+        function latLonToCartesian(lat, lon, radius) {
+            const phi = (90 - lat) * (Math.PI / 180);
+            const theta = (lon + 180) * (Math.PI / 180);
+            const x = -(radius * Math.sin(phi) * Math.sin(theta));
+            const y = radius * Math.cos(phi);
+            const z = radius * Math.sin(phi) * Math.cos(theta);
+            return new THREE.Vector3(x, y, z);
+        }
+
+        camera.position.z = 3;
+
+        // Mouse interaction for rotation
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+
+        const onMouseDown = (event) => {
+            isDragging = true;
+            previousMousePosition = { x: event.clientX, y: event.clientY };
+        };
+
+        const onMouseMove = (event) => {
+            if (!isDragging) return;
+            const deltaX = event.clientX - previousMousePosition.x;
+            const deltaY = event.clientY - previousMousePosition.y;
+
+            globe.rotation.y += deltaX * 0.005;
+            globe.rotation.x += deltaY * 0.005;
+
+            previousMousePosition = { x: event.clientX, y: event.clientY };
+        };
+
+        const onMouseUp = () => {
+            isDragging = false;
+        };
+
+        currentMount.addEventListener('mousedown', onMouseDown);
+        currentMount.addEventListener('mousemove', onMouseMove);
+        currentMount.addEventListener('mouseup', onMouseUp);
+        currentMount.addEventListener('mouseleave', onMouseUp); // Stop dragging if mouse leaves
+
+        // Animation Loop
+        const animate = () => {
+            requestAnimationFrame(animate);
+
+            globe.rotation.y += 0.002; // Continuous slow rotation
+
+            renderer.render(scene, camera);
+        };
+        animate();
+
+        // Handle window resize
+        const handleResize = () => {
+            if (currentMount) {
+                camera.aspect = currentMount.clientWidth / currentMount.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
+            }
+        };
+        window.addEventListener('resize', handleResize);
+
+        // Cleanup
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            currentMount.removeEventListener('mousedown', onMouseDown);
+            currentMount.removeEventListener('mousemove', onMouseMove);
+            currentMount.removeEventListener('mouseup', onMouseUp);
+            currentMount.removeEventListener('mouseleave', onMouseUp);
+            if (currentMount) {
+                currentMount.removeChild(renderer.domElement);
+            }
+            renderer.dispose();
+            geometry.dispose();
+            material.dispose();
+            connections.forEach(line => {
+                line.geometry.dispose();
+                line.material.dispose();
+            });
+        };
+    }, [colorTheme]); // Re-render if color theme changes
+
+    return <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing"></div>;
+};
+
+
+// Dashboard Page Component
+const DashboardPage = () => {
+    const { hiddenCompanies } = useContext(AppContext);
+
+    const [totalActive, setTotalActive] = useState(12450);
+    const [currentValue, setCurrentValue] = useState(87.2); // in Billions
+    const [criticalPriority, setCriticalPriority] = useState(42);
+    const [ingestionRate, setIngestionRate] = useState(1.2);
+    const [threatLevel, setThreatLevel] = useState(3); // 1-5 scale, 5 being highest
+
+    const [liveFeedMessages, setLiveFeedMessages] = useState([]);
+    const [recentAwards, setRecentAwards] = useState([]);
+
+    // Bar Chart Data (Spending by Sector)
+    const [sectorData, setSectorData] = useState([
+        { sector: "Defense", value: 45 },
+        { sector: "IT", value: 20 },
+        { sector: "Health", value: 15 },
+        { sector: "Energy", value: 10 },
+        { sector: "Logistics", value: 7 },
+        { sector: "Other", value: 3 }
+    ]);
+
+    // Line Chart Data (Threat Level Trend)
+    const [threatTrendData, setThreatTrendData] = useState([
+        { month: 'Dec', value: 2 }, { month: 'Jan', value: 2.5 }, { month: 'Feb', value: 3 },
+        { month: 'Mar', value: 2.8 }, { month: 'Apr', value: 3.5 }, { month: 'May', value: 4 }
+    ]);
+
+    // Simulated Top Contractors Data (more diverse sectors)
+    const allContractors = [
+        { id: 1, name: "Lockheed Martin", allocated: 19.2, engagements: 320, sector: "Defense & Aerospace", rating: "A+" },
+        { id: 2, name: "Raytheon Technologies", allocated: 14.5, engagements: 280, sector: "Defense & Electronics", rating: "A" },
+        { id: 3, name: "Northrop Grumman", allocated: 11.8, engagements: 210, sector: "Aerospace Systems", rating: "A" },
+        { id: 4, name: "Amazon Web Services", allocated: 9.1, engagements: 150, sector: "Cloud Computing & IT", rating: "A+" },
+        { id: 5, name: "General Dynamics", allocated: 8.7, engagements: 190, sector: "Land Systems & Naval", rating: "B+" },
+        { id: 6, name: "Pfizer Inc.", allocated: 6.2, engagements: 85, sector: "Bio-Med & Pharma", rating: "A-" },
+        { id: 7, name: "Bechtel Group", allocated: 5.9, engagements: 120, sector: "Infrastructure & Energy", rating: "B" },
+        { id: 8, name: "Booz Allen Hamilton", allocated: 5.5, engagements: 110, sector: "Consulting & IT", rating: "A" },
+        { id: 9, name: "General Electric", allocated: 4.8, engagements: 90, sector: "Energy & Aviation", rating: "B+" },
+        { id: 10, name: "CACI International", allocated: 4.1, engagements: 75, sector: "IT & Cybersecurity", rating: "A-" },
+    ];
+
+    const getVisibleContractors = () => {
+        return allContractors.filter(comp => !hiddenCompanies[comp.name]);
+    };
+
+
+    // Effects for real-time data simulation
+    useEffect(() => {
+        const updateMainStats = setInterval(() => {
+            setTotalActive(prev => prev + generateRandomInt(-3, 7));
+            setCurrentValue(prev => parseFloat((prev + generateRandomValue(-0.1, 0.2)).toFixed(1)));
+            setCriticalPriority(prev => Math.min(60, Math.max(30, prev + generateRandomInt(-1, 3))));
+            setIngestionRate(parseFloat(generateRandomValue(1.0, 1.5).toFixed(1)));
+            setThreatLevel(prev => Math.min(5, Math.max(1, prev + generateRandomInt(-1, 2)));
+
+            // Update sector data slightly
+            setSectorData(prev => prev.map(s => ({
+                ...s,
+                value: Math.max(1, Math.min(100, s.value + generateRandomInt(-2, 2)))
+            })));
+
+            // Update threat trend data
+            setThreatTrendData(prev => {
+                const newTrend = [...prev];
+                newTrend.shift(); // Remove oldest month
+                newTrend.push({ month: 'Now', value: threatLevel }); // Add current threat level
+                return newTrend;
+            });
+
+        }, 3000); // Every 3 seconds
+
+        return () => clearInterval(updateMainStats);
+    }, [threatLevel]); // Depend on threatLevel to update trend data
+
+    useEffect(() => {
+        const feedMessages = [
+            "SYSTEM: Core integrity scan complete. No anomalies.",
+            "INTELLIGENCE: New contract pipeline identified in Sector-7. Initiating deep-scan.",
+            "NETWORK: External probe detected. Origin masked. Flagging for advanced analysis.",
+            "DATASTREAM: Ingesting financial disclosures from Capitol Hill. Processing.",
+            "AI: Predictive model updating for Q3 defense procurements. Confidence: 92%.",
+            "OPERATIONS: New entity 'CyberForge Labs' onboarded. High-priority clearance.",
+            "SYSTEM: Automated threat assessment: Stable. Monitoring external vectors.",
+            "FINANCIALS: Capital reallocation protocol initiated. Sector: Energy.",
+            "AI: Anomaly detected in Congressional Trading: Pattern deviation by Member R.",
+            "SECURE: Biometric authentication confirmed. Access granted: Level 5."
+        ];
+        let messageIndex = 0;
+
+        const addLiveFeedMessage = setInterval(() => {
+            setLiveFeedMessages(prev => {
+                const newMessage = `[${new Date().toLocaleTimeString('en-GB')}] ${feedMessages[messageIndex]}`;
+                messageIndex = (messageIndex + 1) % feedMessages.length;
+                return [newMessage, ...prev].slice(0, 10); // Keep last 10 messages
+            });
+        }, 2000);
+
+        return () => clearInterval(addLiveFeedMessage);
+    }, []);
+
+    useEffect(() => {
+        const sampleAwards = [
+            { id: "DEFENSE-DELTA-0987", contractor: "Boeing Defense", agency: "DoD", value: 2.8, sector: "Defense & Aerospace", date: "2025-05-26" },
+            { id: "IT-NEURON-5678", contractor: "Palantir Technologies", agency: "DoJ", value: 0.45, sector: "Cyber & IT Solutions", date: "2025-05-26" },
+            { id: "HEALTH-GENOME-2345", contractor: "Johnson & Johnson", agency: "HHS", value: 0.72, sector: "Bio-Med & Healthcare", date: "2025-05-25" },
+            { id: "ENERGY-GRID-9012", contractor: "NextEra Energy", agency: "DoE", value: 1.1, sector: "Energy & Infrastructure", date: "2025-05-25" },
+            { id: "LOGI-EXPRESS-3456", contractor: "FedEx Government", agency: "GSA", value: 0.3, sector: "Logistics & Support", date: "2025-05-24" },
+        ];
+        let awardCounter = 0;
+
+        const addRecentAward = setInterval(() => {
+            setRecentAwards(prev => {
+                const award = sampleAwards[awardCounter % sampleAwards.length];
+                awardCounter++;
+                return [award, ...prev].slice(0, 5); // Keep last 5 awards
+            });
+        }, 4000);
+
+        return () => clearInterval(addRecentAward);
+    }, []);
+
+
+    return (
+        <div className="flex-grow container mx-auto px-4 sm:px-8 py-10 relative z-10 grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <Sidebar
+                totalActive={totalActive}
+                currentValue={currentValue}
+                criticalPriority={criticalPriority}
+                ingestionRate={ingestionRate}
+                threatLevel={threatLevel}
+                liveFeedMessages={liveFeedMessages}
+            />
+
+            <section className="lg:col-span-3">
+                {/* Search and Filter Bar */}
+                <div className="nexus-card mb-8 p-6 glow-border">
+                    <h2 className="text-2xl font-semibold mb-4 text-glow text-white">CONTRACT OVERSIGHT INTERFACE</h2>
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <input type="text" placeholder="QUERY: Contract ID, Entity, Sector..." className="flex-grow nexus-input" />
+                        <select className="nexus-input">
+                            <option value="">ALL SECTORS</option>
+                            <option value="defense">DEFENSE & AEROSPACE</option>
+                            <option value="it">CYBER & IT SOLUTIONS</option>
+                            <option value="health">BIO-MED & HEALTHCARE</option>
+                            <option value="energy">ENERGY & INFRASTRUCTURE</option>
+                            <option value="logistics">LOGISTICS & SUPPORT</option>
+                        </select>
+                        <button className="nexus-button">INITIATE SEARCH</button>
                     </div>
                 </div>
 
-                <div class="nexus-card glow-border lg:col-span-2">
-                    <h3 class="text-xl font-semibold text-white mb-4">RECENT STRATEGIC AWARDS</h3>
-                    <ul id="recent-awards-list" class="space-y-3 h-32 overflow-y-auto custom-scrollbar">
-                        <li class="border-b border-gray-700 pb-2 last:border-b-0 text-gray-300">
-                            <p class="data-value text-sm text-primary-accent">CONTRACT-ID: DEFENSE-ALPHA-7892</p>
-                            <p class="text-xs text-gray-400">ENTITY: <span class="text-orange-400">Aegis Dynamics Corp.</span> | VALUE: <span class="text-green-400">$3.5B</span> | SECTOR: DEFENSE | DATE: 2025-05-25</p>
-                        </li>
-                        <li class="border-b border-gray-700 pb-2 last:border-b-0 text-gray-300">
-                            <p class="data-value text-sm text-primary-accent">CONTRACT-ID: CYBER-OMEGA-1234</p>
-                            <p class="text-xs text-gray-400">ENTITY: <span class="text-orange-400">Quantum Cyber Solutions</span> | VALUE: <span class="text-green-400">$800M</span> | SECTOR: IT | DATE: 2025-05-24</p>
-                        </li>
-                    </ul>
-                </div>
+                <div className="animated-line"></div>
 
-                <div class="nexus-card glow-border lg:col-span-1">
-                    <h3 class="text-xl font-semibold text-white mb-4">CAPITAL ALLOCATION BY SECTOR</h3>
-                    <div id="sector-spending-chart" class="chart-container flex items-end gap-3">
+                {/* Dashboard Widgets Grid (Bento Style) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    {/* Widget 1: Active Contracts Overview */}
+                    <div className="nexus-card glow-border">
+                        <h3 className="text-xl font-semibold mb-4 text-white">ACTIVE DEPLOYMENTS</h3>
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="data-label">Total Engagements:</span>
+                            <span className="data-value text-green-400">{totalActive.toLocaleString()}</span>
                         </div>
-                </div>
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="data-label">Allocated Capital:</span>
+                            <span className="data-value text-green-400">{formatCurrency(currentValue * 1000000000)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="data-label">Critical Priority:</span>
+                            <span className="data-value text-critical-color">{criticalPriority}%</span>
+                        </div>
+                    </div>
 
-                <div class="nexus-card glow-border lg:col-span-2">
-                    <h3 class="text-xl font-semibold text-white mb-4">THREAT LEVEL INDEX (LAST 6 MONTHS)</h3>
-                    <div class="chart-container">
-                        <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                            <polyline id="threat-trend-line" class="line-chart-line" points=""></polyline>
-                            </svg>
+                    {/* Widget 2: Recent Strategic Awards */}
+                    <div className="nexus-card glow-border lg:col-span-2">
+                        <h3 className="text-xl font-semibold mb-4 text-white">RECENT STRATEGIC AWARDS</h3>
+                        <ul id="recent-awards-list" className="space-y-3 h-32 overflow-y-auto custom-scrollbar">
+                            {recentAwards.map((award, index) => (
+                                <li key={index} className="border-b pb-2 last:border-b-0 border-gray-700 text-gray-300">
+                                    <p className="data-value text-sm text-primary-accent">CONTRACT-ID: {award.id}</p>
+                                    <p className="text-xs text-gray-400">ENTITY: <span className="text-orange-400">{award.contractor}</span> | VALUE: <span className="text-green-400">{formatCurrency(award.value * 1000000000)}</span> | SECTOR: {award.sector} | DATE: {award.date}</p>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    {/* Widget 3: Spending by Sector - Bar Chart */}
+                    <div className="nexus-card glow-border lg:col-span-1">
+                        <h3 className="text-xl font-semibold mb-4 text-white">CAPITAL ALLOCATION BY SECTOR</h3>
+                        <BarChart data={sectorData} />
+                    </div>
+
+                    {/* Widget 4: Threat Level Analysis - Line Chart */}
+                    <div className="nexus-card glow-border lg:col-span-2">
+                        <h3 className="text-xl font-semibold mb-4 text-white">THREAT LEVEL INDEX (LAST 6 MONTHS)</h3>
+                        <LineChart data={threatTrendData} />
                     </div>
                 </div>
-            </div>
 
-            <div class="nexus-card glow-border mb-8">
-                <h3 class="text-xl font-semibold text-white mb-4">TOP OPERATIONAL ENTITIES (FY2025)</h3>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm text-gray-300">
-                        <thead>
-                            <tr class="border-b border-gray-700 text-red-400 uppercase">
-                                <th class="py-2 px-4">RANK</th>
-                                <th class="py-2 px-4">ENTITY NAME</th>
-                                <th class="py-2 px-4">TOTAL ALLOCATED</th>
-                                <th class="py-2 px-4">ACTIVE ENGAGEMENTS</th>
-                                <th class="py-2 px-4">PRIMARY SECTOR</th>
-                                <th class="py-2 px-4">PERFORMANCE RATING</th>
-                            </tr>
-                        </thead>
-                        <tbody id="top-contractors-table">
-                            <tr class="border-b border-gray-800 hover:bg-gray-800 transition duration-200">
-                                <td class="py-2 px-4">1</td>
-                                <td class="py-2 px-4 text-orange-400">Lockheed Martin</td>
-                                <td class="py-2 px-4 text-green-400">$19.2B</td>
-                                <td class="py-2 px-4">320</td>
-                                <td class="py-2 px-4">Defense & Aerospace</td>
-                                <td class="py-2 px-4 text-green-500">A+</td>
-                            </tr>
-                            <tr class="border-b border-gray-800 hover:bg-gray-800 transition duration-200">
-                                <td class="py-2 px-4">2</td>
-                                <td class="py-2 px-4 text-orange-400">Raytheon Technologies</td>
-                                <td class="py-2 px-4 text-green-400">$14.5B</td>
-                                <td class="py-2 px-4">280</td>
-                                <td class="py-2 px-4">Defense & Electronics</td>
-                                <td class="py-2 px-4 text-green-500">A</td>
-                            </tr>
-                            <tr class="border-b border-gray-800 hover:bg-gray-800 transition duration-200">
-                                <td class="py-2 px-4">3</td>
-                                <td class="py-2 px-4 text-orange-400">Northrop Grumman</td>
-                                <td class="py-2 px-4 text-green-400">$11.8B</td>
-                                <td class="py-2 px-4">210</td>
-                                <td class="py-2 px-4">Aerospace Systems</td>
-                                <td class="py-2 px-4 text-green-500">A</td>
-                            </tr>
-                            <tr class="border-b border-gray-800 hover:bg-gray-800 transition duration-200">
-                                <td class="py-2 px-4">4</td>
-                                <td class="py-2 px-4 text-orange-400">Amazon Web Services</td>
-                                <td class="py-2 px-4 text-green-400">$9.1B</td>
-                                <td class="py-2 px-4">150</td>
-                                <td class="py-2 px-4">Cloud Computing & IT</td>
-                                <td class="py-2 px-4 text-green-500">A+</td>
-                            </tr>
-                            <tr class="border-b border-gray-800 hover:bg-gray-800 transition duration-200">
-                                <td class="py-2 px-4">5</td>
-                                <td class="py-2 px-4 text-orange-400">General Dynamics</td>
-                                <td class="py-2 px-4 text-green-400">$8.7B</td>
-                                <td class="py-2 px-4">190</td>
-                                <td class="py-2 px-4">Land Systems & Naval</td>
-                                <td class="py-2 px-4 text-yellow-500">B+</td>
-                            </tr>
-                            <tr class="border-b border-gray-800 hover:bg-gray-800 transition duration-200">
-                                <td class="py-2 px-4">6</td>
-                                <td class="py-2 px-4 text-orange-400">Pfizer Inc.</td>
-                                <td class="py-2 px-4 text-green-400">$6.2B</td>
-                                <td class="py-2 px-4">85</td>
-                                <td class="py-2 px-4">Bio-Med & Pharma</td>
-                                <td class="py-2 px-4 text-green-500">A-</td>
-                            </tr>
-                            <tr class="hover:bg-gray-800 transition duration-200">
-                                <td class="py-2 px-4">7</td>
-                                <td class="py-2 px-4 text-orange-400">Bechtel Group</td>
-                                <td class="py-2 px-4 text-green-400">$5.9B</td>
-                                <td class="py-2 px-4">120</td>
-                                <td class="py-2 px-4">Infrastructure & Energy</td>
-                                <td class="py-2 px-4 text-yellow-500">B</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                {/* Top Contractors - Expanded List */}
+                <div className="nexus-card glow-border mb-8">
+                    <h3 className="text-xl font-semibold mb-4 text-white">TOP OPERATIONAL ENTITIES (FY2025)</h3>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm text-gray-300">
+                            <thead>
+                                <tr className="border-b uppercase border-gray-700 text-primary-accent">
+                                    <th className="py-2 px-4">RANK</th>
+                                    <th className="py-2 px-4">ENTITY NAME</th>
+                                    <th className="py-2 px-4">TOTAL ALLOCATED</th>
+                                    <th className="py-2 px-4">ACTIVE ENGAGEMENTS</th>
+                                    <th className="py-2 px-4">PRIMARY SECTOR</th>
+                                    <th className="py-2 px-4">PERFORMANCE RATING</th>
+                                </tr>
+                            </thead>
+                            <tbody id="top-contractors-table">
+                                {getVisibleContractors().map(contractor => (
+                                    <tr key={contractor.id} className="transition duration-200 border-b border-gray-800 hover:bg-gray-800">
+                                        <td className="py-2 px-4">{contractor.id}</td>
+                                        <td className="py-2 px-4 text-orange-400">{contractor.name}</td>
+                                        <td className="py-2 px-4 text-green-400">{formatCurrency(contractor.allocated * 1000000000)}</td>
+                                        <td className="py-2 px-4">{contractor.engagements}</td>
+                                        <td className="py-2 px-4">{contractor.sector}</td>
+                                        <td className={`py-2 px-4 ${contractor.rating.includes('A') ? 'text-green-500' : 'text-yellow-500'}`}>{contractor.rating}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
 
-            <div class="nexus-card glow-border mb-8 ai-pulse">
-                <h3 class="text-xl font-semibold text-white mb-4 text-glow">CONGRESSIONAL TRADING: CONFLICT MATRIX</h3>
-                <p class="text-sm text-gray-400 mb-6">Monitoring publicly disclosed financial transactions by members of Congress and their immediate families against active government contracts for potential conflict identification. Data updated per STOCK Act disclosure requirements.</p>
+                {/* 3D Globe for Contract Distribution */}
+                <div className="nexus-card glow-border mb-8">
+                    <h3 className="text-xl font-semibold mb-4 text-white">GLOBAL CONTRACT DISTRIBUTION (SIMULATED)</h3>
+                    <div className="w-full h-64 bg-gray-900 rounded-lg flex items-center justify-center text-gray-500 text-lg">
+                        <Globe3D />
+                    </div>
+                </div>
+            </section>
+        </div>
+    );
+};
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+// Congressional Trading Page Component
+const CongressionalTradingPage = () => {
+    const { colorTheme } = useContext(AppContext);
+    const [congressTrades, setCongressTrades] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterType, setFilterType] = useState('all');
+
+    // Simulated congressional trading data
+    const allCongressTrades = [
+        { type: "BUY", value: "$50K-100K", ticker: "RTX (Raytheon)", member: "Sen. P. Jones", party: "R", state: "FL", committee: "Armed Services", date: "2025-05-26", conflict: "Defense Committee" },
+        { type: "SELL", value: "$1M-5M", ticker: "GOOGL (Alphabet)", member: "Rep. S. Khan", party: "D", state: "CA", committee: "Tech Subcommittee", date: "2025-05-25", conflict: "Tech Subcommittee" },
+        { type: "BUY", value: "$10K-50K", ticker: "PLTR (Palantir)", member: "Sen. A. Davis", party: "I", state: "OH", committee: "Intelligence Oversight", date: "2025-05-24", conflict: "Intelligence Oversight" },
+        { type: "BUY", value: "$1K-15K", ticker: "CVX (Chevron)", member: "Rep. C. Miller", party: "R", state: "WY", committee: "Energy & Commerce", date: "2025-05-23", conflict: "Energy & Commerce" },
+        { type: "SELL", value: "$250K-500K", ticker: "JNJ (J&J)", member: "Sen. E. White", party: "D", state: "GA", committee: "Health Committee", date: "2025-05-22", conflict: "Health Committee" },
+        { type: "BUY", value: "$50K-100K", ticker: "LMT (Lockheed Martin)", member: "Rep. J. Doe", party: "D", state: "CA", committee: "Armed Services", date: "2025-05-22", conflict: "Defense Committee" },
+        { type: "SELL", value: "$50K-100K", ticker: "PFE (Pfizer)", member: "Sen. A. Smith", party: "R", state: "TX", committee: "Health Subcommittee", date: "2025-05-21", conflict: "Health Subcommittee" },
+        { type: "BUY", value: "$1K-15K", ticker: "AMZN (Amazon)", member: "Rep. M. Garcia", party: "I", state: "NY", committee: "Small Business", date: "2025-05-20", conflict: "None evident" },
+        { type: "BUY", value: "$100K-250K", ticker: "BA (Boeing)", member: "Sen. T. Brown", party: "D", state: "WA", committee: "Commerce, Science, and Transportation", date: "2025-05-19", conflict: "Aerospace Industry" },
+        { type: "SELL", value: "$15K-50K", ticker: "XOM (ExxonMobil)", member: "Rep. K. Lee", party: "R", state: "TX", committee: "Natural Resources", date: "2025-05-18", conflict: "Oil & Gas Industry" },
+    ];
+
+    useEffect(() => {
+        // Simulate real-time updates for congressional trades
+        let tradeIndex = 0;
+        const addCongressTrade = setInterval(() => {
+            setCongressTrades(prev => {
+                const trade = allCongressTrades[tradeIndex % allCongressTrades.length];
+                tradeIndex++;
+                return [trade, ...prev].slice(0, 10); // Keep last 10 trades
+            });
+        }, 6000); // Add new trade every 6 seconds
+
+        return () => clearInterval(addCongressTrade);
+    }, []);
+
+    const filteredTrades = congressTrades.filter(trade => {
+        const matchesSearch = searchTerm === '' ||
+                              trade.member.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              trade.ticker.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              trade.committee.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesFilterType = filterType === 'all' ||
+                                  (filterType === 'buy' && trade.type === 'BUY') ||
+                                  (filterType === 'sell' && trade.type === 'SELL');
+        return matchesSearch && matchesFilterType;
+    });
+
+    const getConflictRisk = (conflict) => {
+        if (conflict.includes('Defense') || conflict.includes('Armed Services') || conflict.includes('Intelligence')) return 'HIGH RISK';
+        if (conflict.includes('Tech') || conflict.includes('Energy') || conflict.includes('Health') || conflict.includes('Industry')) return 'MODERATE RISK';
+        return 'LOW RISK';
+    };
+
+    const getConflictColor = (risk) => {
+        switch (risk) {
+            case 'HIGH RISK': return 'text-critical-color';
+            case 'MODERATE RISK': return 'text-warning-color';
+            case 'LOW RISK': return 'text-success-color';
+            default: return 'text-gray-500';
+        }
+    };
+
+    return (
+        <div className="flex-grow container mx-auto px-4 sm:px-8 py-10 relative z-10">
+            <div className="nexus-card glow-border mb-8 ai-pulse">
+                <h3 className="text-xl font-semibold mb-4 text-glow text-white">CONGRESSIONAL TRADING: CONFLICT MATRIX</h3>
+                <p className="text-sm mb-6 text-gray-400">Monitoring publicly disclosed financial transactions by members of Congress and their immediate families against active government contracts for potential conflict identification. Data updated per STOCK Act disclosure requirements.</p>
+
+                <div className="flex flex-col md:flex-row gap-4 mb-6">
+                    <input
+                        type="text"
+                        placeholder="Search Member, Ticker, Committee..."
+                        className="flex-grow nexus-input"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <select
+                        className="nexus-input"
+                        value={filterType}
+                        onChange={(e) => setFilterType(e.target.value)}
+                    >
+                        <option value="all">All Transactions</option>
+                        <option value="buy">Buys</option>
+                        <option value="sell">Sells</option>
+                    </select>
+                    <button className="nexus-button">APPLY FILTER</button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="text-lg font-semibold text-red-400 mb-3">RECENT PTR ALERTS (Periodic Transaction Reports)</h4>
-                        <ul id="congress-trades-list" class="space-y-3 h-48 overflow-y-auto custom-scrollbar">
-                            <li class="border-b border-gray-700 pb-2 last:border-b-0 text-gray-300">
-                                <p class="text-sm"><span class="font-bold text-green-400">BUY: $100K-250K</span> | TICKER: <span class="text-orange-400">LMT (Lockheed Martin)</span></p>
-                                <p class="text-xs text-gray-500">Member: Rep. J. Doe (D-CA) | Date: 2025-05-22 | Potential Conflict: Defense Committee member.</p>
-                            </li>
-                            <li class="border-b border-gray-700 pb-2 last:border-b-0 text-gray-300">
-                                <p class="text-sm"><span class="font-bold text-red-400">SELL: $50K-100K</span> | TICKER: <span class="text-orange-400">PFE (Pfizer)</span></p>
-                                <p class="text-xs text-gray-500">Member: Sen. A. Smith (R-TX) | Date: 2025-05-21 | Potential Conflict: Health Subcommittee member.</p>
-                            </li>
-                            <li class="border-b border-gray-700 pb-2 last:border-b-0 text-gray-300">
-                                <p class="text-sm"><span class="font-bold text-green-400">BUY: $1K-15K</span> | TICKER: <span class="text-orange-400">AMZN (Amazon)</span></p>
-                                <p class="text-xs text-gray-500">Member: Rep. M. Garcia (I-NY) | Date: 2025-05-20 | Potential Conflict: None evident.</p>
-                            </li>
+                        <h4 className="text-lg font-semibold mb-3 text-primary-accent">RECENT PTR ALERTS (Periodic Transaction Reports)</h4>
+                        <ul id="congress-trades-list" className="space-y-3 h-64 overflow-y-auto custom-scrollbar">
+                            {filteredTrades.length > 0 ? (
+                                filteredTrades.map((trade, index) => (
+                                    <li key={index} className="border-b pb-2 last:border-b-0 border-gray-700 text-gray-300">
+                                        <p className="text-sm"><span className={`font-bold ${trade.type === 'BUY' ? 'text-green-400' : 'text-critical-color'}`}>{trade.type}: {trade.value}</span> | TICKER: <span className="text-orange-400">{trade.ticker}</span></p>
+                                        <p className="text-xs text-gray-500">Member: {trade.member} ({trade.party}-{trade.state}) | Date: {trade.date} | Committee: {trade.committee}</p>
+                                    </li>
+                                ))
+                            ) : (
+                                <p className="text-gray-500">No trades found matching criteria.</p>
+                            )}
                         </ul>
                     </div>
                     <div>
-                        <h4 class="text-lg font-semibold text-red-400 mb-3">CONFLICT OVERLAY (SIMULATED)</h4>
-                        <div class="bg-gray-900 p-4 rounded-lg h-48 overflow-y-auto custom-scrollbar">
-                            <p class="text-sm text-red-500 mb-2 font-bold">HIGH RISK: Member X owns shares in Defense Contractor Y, active on Armed Services Committee.</p>
-                            <p class="text-sm text-orange-400 mb-2 font-bold">MODERATE RISK: Member Z's spouse trades in Energy Co. A, while Member Z votes on energy policy.</p>
-                            <p class="text-sm text-green-500 mb-2">LOW RISK: Member Q holds diverse portfolio, no direct links to committee assignments.</p>
-                            <p class="text-xs text-gray-500 mt-4">Note: This module provides simulated analysis based on publicly available data. Further investigation required for definitive conflict assessment.</p>
+                        <h4 className="text-lg font-semibold mb-3 text-primary-accent">CONFLICT OVERLAY (SIMULATED)</h4>
+                        <div className="p-4 rounded-lg h-64 overflow-y-auto custom-scrollbar bg-gray-900">
+                            {filteredTrades.length > 0 ? (
+                                filteredTrades.map((trade, index) => {
+                                    const risk = getConflictRisk(trade.conflict);
+                                    const colorClass = getConflictColor(risk);
+                                    return (
+                                        <p key={index} className={`text-sm mb-2 font-bold ${colorClass}`}>
+                                            {risk}: {trade.member} owns/traded shares in {trade.ticker}, active on {trade.committee} Committee.
+                                        </p>
+                                    );
+                                })
+                            ) : (
+                                <p className="text-gray-500">No potential conflicts to display based on current filters.</p>
+                            )}
+                            <p className="text-xs text-gray-500 mt-4">Note: This module provides simulated analysis based on publicly available data. Further investigation required for definitive conflict assessment.</p>
                         </div>
                     </div>
                 </div>
             </div>
-        </section>
-    </main>
+        </div>
+    );
+};
 
-    <footer class="relative z-10 py-6 px-4 sm:px-8 text-center text-gray-500 text-xs border-t border-gray-800 mt-10">
-        <p>&copy; 2025 PHOENIX PROTOCOL. All rights reserved. | Strategic Data Initiative | <span class="glitch">SECURITY LEVEL: ALPHA</span></p>
-        <p class="mt-2">Deployed by: U.S. National Intelligence Directorate (Simulated)</p>
-    </footer>
+// Settings Page Component
+const SettingsPage = () => {
+    const { colorTheme, changeColorTheme, hiddenCompanies, toggleCompanyVisibility } = useContext(AppContext);
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const totalActiveSpan = document.getElementById('total-active');
-            const currentValueSpan = document.getElementById('current-value');
-            const criticalPrioritySpan = document.getElementById('critical-priority');
-            const ingestionRateSpan = document.getElementById('ingestion-rate');
-            const threatLevelSpan = document.getElementById('threat-level');
-            const liveFeedDiv = document.getElementById('live-feed');
-            const alertsPanel = document.getElementById('alerts-panel');
-            const recentAwardsList = document.getElementById('recent-awards-list');
-            const sectorSpendingChart = document.getElementById('sector-spending-chart');
-            const threatTrendLine = document.getElementById('threat-trend-line');
-            const congressTradesList = document.getElementById('congress-trades-list');
+    const availableCompanies = [
+        "Lockheed Martin", "Raytheon Technologies", "Northrop Grumman",
+        "Amazon Web Services", "General Dynamics", "Pfizer Inc.",
+        "Bechtel Group", "Booz Allen Hamilton", "General Electric", "CACI International"
+    ];
 
-            let activeContracts = 12450;
-            let currentValue = 87.2;
-            let criticalPriority = 42;
-            let ingestionRate = 1.2;
-            let threatLevel = 3; // 1-5 scale, 5 being highest
+    const availableColorThemes = {
+        'godlike-tech': 'Godlike Tech (Default)',
+        'deep-ocean': 'Deep Ocean',
+        'emerald-matrix': 'Emerald Matrix',
+        'cosmic-violet': 'Cosmic Violet'
+    };
 
-            // Function to update main stats
-            function updateMainStats() {
-                activeContracts += Math.floor(Math.random() * 7) - 3; // +/- 3 contracts
-                currentValue += (Math.random() * 0.2 - 0.1); // +/- 0.1 Billion
-                criticalPriority = Math.min(60, Math.max(30, criticalPriority + Math.floor(Math.random() * 3) - 1)); // +/- 1%, capped
-                ingestionRate = (Math.random() * 0.5 + 1.0).toFixed(1); // 1.0 - 1.5 TB/hr
-                threatLevel = Math.min(5, Math.max(1, threatLevel + Math.floor(Math.random() * 3) - 1)); // +/- 1, capped
-
-                totalActiveSpan.textContent = activeContracts.toLocaleString();
-                currentValueSpan.textContent = `$${currentValue.toFixed(1)}B USD`;
-                criticalPrioritySpan.textContent = `${criticalPriority}%`;
-                ingestionRateSpan.textContent = `${ingestionRate} TB/hr`;
-
-                if (threatLevel >= 4) {
-                    threatLevelSpan.textContent = `CRITICAL - CODE RED (${threatLevel})`;
-                    threatLevelSpan.classList.add('glitch', 'text-red-500');
-                    threatLevelSpan.classList.remove('text-orange-400');
-                } else if (threatLevel === 3) {
-                    threatLevelSpan.textContent = `ELEVATED - ORANGE (${threatLevel})`;
-                    threatLevelSpan.classList.add('text-orange-400');
-                    threatLevelSpan.classList.remove('glitch', 'text-red-500');
-                } else {
-                    threatLevelSpan.textContent = `STABLE - GREEN (${threatLevel})`;
-                    threatLevelSpan.classList.add('text-green-500');
-                    threatLevelSpan.classList.remove('glitch', 'text-red-500', 'text-orange-400');
-                }
-            }
-
-            // Simulated live feed messages (more 'techy' and 'urgent')
-            const feedMessages = [
-                "SYSTEM: Core integrity scan complete. No anomalies.",
-                "INTELLIGENCE: New contract pipeline identified in Sector-7. Initiating deep-scan.",
-                "NETWORK: External probe detected. Origin masked. Flagging for advanced analysis.",
-                "DATASTREAM: Ingesting financial disclosures from Capitol Hill. Processing.",
-                "AI: Predictive model updating for Q3 defense procurements. Confidence: 92%.",
-                "ALERT: Minor data corruption in historical log. Self-correction initiated.",
-                "OPERATIONS: New entity 'CyberForge Labs' onboarded. High-priority clearance.",
-                "SYSTEM: Automated threat assessment: Stable. Monitoring external vectors.",
-                "FINANCIALS: Capital reallocation protocol initiated. Sector: Energy.",
-                "AI: Anomaly detected in Congressional Trading: Pattern deviation by Member R.",
-                "SECURE: Biometric authentication confirmed. Access granted: Level 5."
-            ];
-            let messageIndex = 0;
-
-            function addLiveFeedMessage() {
-                const p = document.createElement('p');
-                p.textContent = `[${new Date().toLocaleTimeString('en-GB')}] ${feedMessages[messageIndex]}`;
-                p.classList.add('text-gray-300', 'mb-1', 'opacity-0', 'animate-fade-in');
-                liveFeedDiv.prepend(p);
-                if (liveFeedDiv.children.length > 10) {
-                    liveFeedDiv.removeChild(liveFeedDiv.lastChild);
-                }
-                messageIndex = (messageIndex + 1) % feedMessages.length;
-            }
-
-            // Simulated recent awards (more diverse sectors)
-            const sampleAwards = [
-                { id: "DEFENSE-DELTA-0987", contractor: "Boeing Defense", agency: "DoD", value: "2.8B", sector: "Defense & Aerospace", date: "2025-05-26" },
-                { id: "IT-NEURON-5678", contractor: "Palantir Technologies", agency: "DoJ", value: "450M", sector: "Cyber & IT Solutions", date: "2025-05-26" },
-                { id: "HEALTH-GENOME-2345", contractor: "Johnson & Johnson", agency: "HHS", value: "720M", sector: "Bio-Med & Healthcare", date: "2025-05-25" },
-                { id: "ENERGY-GRID-9012", contractor: "NextEra Energy", agency: "DoE", value: "1.1B", sector: "Energy & Infrastructure", date: "2025-05-25" },
-                { id: "LOGI-EXPRESS-3456", contractor: "FedEx Government", agency: "GSA", value: "300M", sector: "Logistics & Support", date: "2025-05-24" },
-            ];
-            let awardCounter = 0;
-
-            function addRecentAward() {
-                const award = sampleAwards[awardCounter % sampleAwards.length];
-                const li = document.createElement('li');
-                li.classList.add('border-b', 'border-gray-700', 'pb-2', 'last:border-b-0', 'text-gray-300');
-                li.innerHTML = `
-                    <p class="data-value text-sm text-primary-accent">CONTRACT-ID: ${award.id}</p>
-                    <p class="text-xs text-gray-400">ENTITY: <span class="text-orange-400">${award.contractor}</span> | VALUE: <span class="text-green-400">$${award.value}</span> | SECTOR: ${award.sector} | DATE: ${award.date}</p>
-                `;
-                recentAwardsList.prepend(li);
-                if (recentAwardsList.children.length > 5) {
-                    recentAwardsList.removeChild(recentAwardsList.lastChild);
-                }
-                awardCounter++;
-            }
-
-            // Bar Chart Data (Spending by Sector)
-            const sectorData = [
-                { sector: "Defense", value: 45 },
-                { sector: "IT", value: 20 },
-                { sector: "Health", value: 15 },
-                { sector: "Energy", value: 10 },
-                { sector: "Logistics", value: 7 },
-                { sector: "Other", value: 3 }
-            ];
-
-            function drawBarChart() {
-                sectorSpendingChart.innerHTML = '';
-                const maxValue = Math.max(...sectorData.map(d => d.value));
-
-                sectorData.forEach(data => {
-                    const barHeight = (data.value / maxValue) * 100;
-                    const bar = document.createElement('div');
-                    bar.classList.add('bar-chart-bar', 'flex-grow', 'relative', 'flex', 'flex-col', 'items-center', 'justify-end');
-                    bar.style.height = `${barHeight}%`;
-                    bar.style.animation = `bar-grow 1s ease-out forwards`;
-                    bar.style.setProperty('--bar-height', `${barHeight}%`); // For animation if needed
-
-                    const valueSpan = document.createElement('span');
-                    valueSpan.classList.add('bar-chart-bar-value');
-                    valueSpan.textContent = `${data.value}%`;
-
-                    const labelDiv = document.createElement('div');
-                    labelDiv.classList.add('bar-chart-bar-label');
-                    labelDiv.textContent = data.sector;
-
-                    bar.appendChild(valueSpan);
-                    bar.appendChild(labelDiv);
-                    sectorSpendingChart.appendChild(bar);
-                });
-            }
-
-            // Line Chart Data (Threat Level Trend)
-            const threatTrendData = [
-                { month: 'Dec', value: 2 }, { month: 'Jan', value: 2.5 }, { month: 'Feb', value: 3 },
-                { month: 'Mar', value: 2.8 }, { month: 'Apr', value: 3.5 }, { month: 'May', value: 4 }
-            ];
-
-            function drawLineChart() {
-                const svg = document.querySelector('#threat-level-index-chart svg'); // Targeting the correct SVG
-                const polyline = document.getElementById('threat-trend-line');
-                const points = [];
-                const maxVal = 5; // Max threat level
-                const minVal = 1; // Min threat level
-                const range = maxVal - minVal;
-
-                // Clear existing circles
-                Array.from(svg.querySelectorAll('.line-chart-point')).forEach(circle => circle.remove());
-
-                threatTrendData.forEach((data, i) => {
-                    const x = (i / (threatTrendData.length - 1)) * 90 + 5; // Scale to 5-95 for padding
-                    const y = 100 - (((data.value - minVal) / range) * 80 + 10); // Scale to 10-90 range for padding
-
-                    points.push(`${x},${y}`);
-
-                    // Add circles for points
-                    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-                    circle.setAttribute('cx', x);
-                    circle.setAttribute('cy', y);
-                    circle.setAttribute('r', 2.5);
-                    circle.classList.add('line-chart-point');
-                    svg.appendChild(circle);
-                });
-
-                polyline.setAttribute('points', points.join(' '));
-
-                // Animate line drawing
-                const length = polyline.getTotalLength();
-                polyline.style.strokeDasharray = length;
-                polyline.style.strokeDashoffset = length;
-                polyline.getBoundingClientRect(); // Trigger reflow
-                polyline.style.strokeDashoffset = '0';
-            }
-
-            // Simulated congressional trading data
-            const congressTrades = [
-                { type: "BUY", value: "$50K-100K", ticker: "RTX (Raytheon)", member: "Sen. P. Jones (R-FL)", conflict: "Defense Committee", date: "2025-05-26" },
-                { type: "SELL", value: "$1M-5M", ticker: "GOOGL (Alphabet)", member: "Rep. S. Khan (D-CA)", conflict: "Tech Subcommittee", date: "2025-05-25" },
-                { type: "BUY", value: "$10K-50K", ticker: "PLTR (Palantir)", member: "Sen. A. Davis (I-OH)", conflict: "Intelligence Oversight", date: "2025-05-24" },
-                { type: "BUY", value: "$1K-15K", ticker: "CVX (Chevron)", member: "Rep. C. Miller (R-WY)", conflict: "Energy & Commerce", date: "2025-05-23" },
-                { type: "SELL", value: "$250K-500K", ticker: "JNJ (J&J)", member: "Sen. E. White (D-GA)", conflict: "Health Committee", date: "2025-05-22" },
-            ];
-            let congressTradeIndex = 0;
-
-            function addCongressTrade() {
-                const trade = congressTrades[congressTradeIndex % congressTrades.length];
-                const li = document.createElement('li');
-                li.classList.add('border-b', 'border-gray-700', 'pb-2', 'last:border-b-0', 'text-gray-300');
-                const typeClass = trade.type === "BUY" ? "text-green-400" : "text-red-400";
-                li.innerHTML = `
-                    <p class="text-sm"><span class="font-bold ${typeClass}">${trade.type}: ${trade.value}</span> | TICKER: <span class="text-orange-400">${trade.ticker}</span></p>
-                    <p class="text-xs text-gray-500">Member: ${trade.member} | Date: ${trade.date} | Potential Conflict: ${trade.conflict}.</p>
-                `;
-                congressTradesList.prepend(li);
-                if (congressTradesList.children.length > 5) { // Keep only last 5
-                    congressTradesList.removeChild(congressTradesList.lastChild);
-                }
-                congressTradeIndex++;
-            }
-
-            // Simulated alerts
-            const systemAlerts = [
-                { type: 'warning', message: 'Critical system resource usage detected: Disk I/O spike.' },
-                { type: 'critical', message: 'External entity attempting brute-force on authentication protocols. IP: 203.0.113.44.' },
-                { type: 'success', message: 'Database integrity check: All checksums verified. OK.' },
-                { type: 'warning', message: 'Data packet loss on secondary channel. Rerouting traffic.' },
-                { type: 'critical', message: 'Unauthorized API call from internal source. Tracing origin.' },
-                { type: 'success', message: 'Predictive analytics model re-calibrated. Accuracy improved by 0.7%.' },
-            ];
-            let alertIndex = 0;
-
-            function addSystemAlert() {
-                const alert = systemAlerts[alertIndex % systemAlerts.length];
-                const div = document.createElement('div');
-                div.classList.add('alert-item', alert.type);
-                div.innerHTML = `<span class="font-bold">[${alert.type.toUpperCase()}]</span> ${alert.message}`;
-                alertsPanel.prepend(div);
-                if (alertsPanel.children.length > 5) { // Keep only last 5 alerts
-                    alertsPanel.removeChild(alertsPanel.lastChild);
-                }
-                alertIndex = (alertIndex + 1) % systemAlerts.length;
-            }
-
-
-            // Initial draws and continuous updates
-            drawBarChart();
-            drawLineChart();
-            updateMainStats(); // Initial call
-
-            setInterval(updateMainStats, 3000); // Update main stats every 3 seconds
-            setInterval(addLiveFeedMessage, 2000); // Add feed message every 2 seconds
-            setInterval(addRecentAward, 4000); // Add new award every 4 seconds
-            setInterval(addCongressTrade, 6000); // Add new congress trade every 6 seconds
-            setInterval(addSystemAlert, 5000); // Add system alert every 5 seconds
+    // Apply color palette to document root
+    useEffect(() => {
+        const root = document.documentElement;
+        // Apply color palette
+        Object.entries(colorPalettes[colorTheme]).forEach(([key, value]) => {
+            root.style.setProperty(key, value);
         });
-    </script>
-</body>
-</html>
+        // Ensure body class for base theme (always dark now)
+        document.body.className = 'dark';
+    }, [colorTheme]);
+
+    return (
+        <div className="flex-grow container mx-auto px-4 sm:px-8 py-10 relative z-10">
+            <div className="nexus-card glow-border mb-8">
+                <h2 className="text-2xl font-semibold mb-6 text-glow text-white">SYSTEM CONFIGURATION</h2>
+
+                {/* Theme Settings */}
+                <div className="mb-8 p-4 border border-border-color rounded-md">
+                    <h3 className="text-xl font-semibold mb-4 text-primary-accent">DISPLAY THEME</h3>
+                    <div className="mb-4">
+                        <label htmlFor="color-theme-select" className="block text-sm font-medium mb-2 text-gray-300">Choose Color Palette:</label>
+                        <select
+                            id="color-theme-select"
+                            className="nexus-input w-full md:w-1/2"
+                            value={colorTheme}
+                            onChange={(e) => changeColorTheme(e.target.value)}
+                        >
+                            {Object.entries(availableColorThemes).map(([key, name]) => (
+                                <option key={key} value={key}>{name}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                {/* Company Visibility Settings */}
+                <div className="mb-8 p-4 border border-border-color rounded-md">
+                    <h3 className="text-xl font-semibold mb-4 text-primary-accent">CONTRACTOR VISIBILITY</h3>
+                    <p className="text-sm mb-4 text-gray-400">Toggle visibility for major contractors on the dashboard:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {availableCompanies.map(company => (
+                            <div key={company} className="flex items-center">
+                                <input
+                                    type="checkbox"
+                                    id={`company-toggle-${company}`}
+                                    className="h-4 w-4 text-primary-accent rounded focus:ring-primary-accent"
+                                    checked={!hiddenCompanies[company]}
+                                    onChange={() => toggleCompanyVisibility(company)}
+                                />
+                                <label htmlFor={`company-toggle-${company}`} className="ml-2 text-sm font-medium text-gray-300">
+                                    {company}
+                                </label>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Other Settings (Placeholders) */}
+                <div className="mb-8 p-4 border border-border-color rounded-md">
+                    <h3 className="text-xl font-semibold mb-4 text-primary-accent">ADVANCED SETTINGS</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <label htmlFor="refresh-rate" className="block text-sm font-medium mb-1 text-gray-300">Data Refresh Rate (Simulated):</label>
+                            <select id="refresh-rate" className="nexus-input w-full md:w-1/3">
+                                <option value="3s">3 Seconds</option>
+                                <option value="5s">5 Seconds</option>
+                                <option value="10s">10 Seconds</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label htmlFor="notifications" className="block text-sm font-medium mb-1 text-gray-300">Notification Preferences:</label>
+                            <select id="notifications" className="nexus-input w-full md:w-1/3">
+                                <option value="all">All Critical Alerts</option>
+                                <option value="major">Major Alerts Only</option>
+                                <option value="none">None</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <button className="nexus-button">APPLY SETTINGS</button>
+            </div>
+        </div>
+    );
+};
+
+
+// Main App Component
+const App = () => {
+    const { currentPage } = useContext(AppContext);
+
+    return (
+        <div className="min-h-screen flex flex-col">
+            <div className="bg-grid"></div>
+            <Header />
+
+            {/* Render current page based on state */}
+            {(() => {
+                switch (currentPage) {
+                    case 'dashboard':
+                        return <DashboardPage />;
+                    case 'congressional-trading':
+                        return <CongressionalTradingPage />;
+                    case 'settings':
+                        return <SettingsPage />;
+                    default:
+                        return <DashboardPage />;
+                }
+            })()}
+
+            {/* Footer Section */}
+            <footer className="relative z-10 py-6 px-4 sm:px-8 text-center text-xs border-t mt-10 text-gray-500 border-gray-800">
+                <p>&copy; 2025 PHOENIX PROTOCOL. All rights reserved. | Strategic Data Initiative | <span className="glitch">SECURITY LEVEL: ALPHA</span></p>
+                <p className="mt-2">Deployed by: U.S. National Intelligence Directorate (Simulated)</p>
+            </footer>
+        </div>
+    );
+};
+
+// Export the main App component wrapped in the Provider
+export default function ProvidedApp() {
+    return (
+        <AppProvider>
+            <App />
+        </AppProvider>
+    );
+}
