@@ -40,7 +40,7 @@
                 '--input-focus-shadow': 'rgba(0, 255, 100, 0.3)',
                 '--bar-chart-color': 'var(--primary-accent)',
                 '--line-chart-color': 'var(--secondary-accent)',
-                '--globe-color': 'var(--tertiary-accent)',
+                '--globe-color': '#333333', // Darker base for sleekness
                 '--globe-lines': 'var(--primary-accent)',
                 '--globe-blip-color': '#00FF00', /* Green blips */
                 '--globe-hq-color': '#FF0032', /* Red HQs */
@@ -77,7 +77,7 @@
                 '--input-focus-shadow': 'rgba(0, 206, 209, 0.3)',
                 '--bar-chart-color': 'var(--primary-accent)',
                 '--line-chart-color': 'var(--secondary-accent)',
-                '--globe-color': 'var(--tertiary-accent)',
+                '--globe-color': '#0A142A', // Darker base for sleekness
                 '--globe-lines': 'var(--primary-accent)',
                 '--globe-blip-color': '#28A745',
                 '--globe-hq-color': '#DC3545',
@@ -114,7 +114,7 @@
                 '--input-focus-shadow': 'rgba(50, 205, 50, 0.3)',
                 '--bar-chart-color': 'var(--primary-accent)',
                 '--line-chart-color': 'var(--secondary-accent)',
-                '--globe-color': 'var(--tertiary-accent)',
+                '--globe-color': '#1A2A1A', // Darker base for sleekness
                 '--globe-lines': 'var(--primary-accent)',
                 '--globe-blip-color': '#32CD32',
                 '--globe-hq-color': '#DC3545',
@@ -151,7 +151,7 @@
                 '--input-focus-shadow': 'rgba(232, 62, 140, 0.3)',
                 '--bar-chart-color': 'var(--primary-accent)',
                 '--line-chart-color': 'var(--secondary-accent)',
-                '--globe-color': 'var(--tertiary-accent)',
+                '--globe-color': '#2A103A', // Darker base for sleekness
                 '--globe-lines': 'var(--primary-accent)',
                 '--globe-blip-color': '#20C997',
                 '--globe-hq-color': '#E00040',
@@ -396,12 +396,13 @@
             );
         };
 
-        // 3D Globe Component
+        // 3D Globe Component - UPDATED FOR SLEEK DESIGN
         const Globe3D = () => {
             const mountRef = React.useRef(null);
             const { colorTheme } = React.useContext(AppContext);
             const contractBlipsRef = React.useRef([]); // Ref to store contract blip meshes
             const hqBlipsRef = React.useRef([]); // Ref to store HQ blip meshes
+            const connectionsRef = React.useRef([]); // Ref to store connection lines
 
             React.useEffect(() => {
                 const currentMount = mountRef.current;
@@ -414,21 +415,30 @@
                 renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
                 currentMount.appendChild(renderer.domElement);
 
+                // Add Lights for the Globe
+                const ambientLight = new THREE.AmbientLight(0x404040, 1.5); // Soft white light, slightly stronger
+                scene.add(ambientLight);
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8); // White light
+                directionalLight.position.set(5, 3, 5).normalize();
+                scene.add(directionalLight);
+
                 // Globe
-                const geometry = new THREE.SphereGeometry(1.5, 32, 32);
-                const material = new THREE.MeshBasicMaterial({
-                    color: new THREE.Color(colorPalettes[colorTheme]['--globe-color']),
-                    wireframe: true,
+                const geometry = new THREE.SphereGeometry(1.5, 64, 64); // Increased segments for smoother appearance
+                const globeBaseColor = new THREE.Color(colorPalettes[colorTheme]['--globe-color']);
+                const material = new THREE.MeshPhongMaterial({ // Changed to Phong for reflections
+                    color: globeBaseColor,
+                    specular: globeBaseColor.clone().offsetHSL(0, 0, 0.2), // Brighter specular for shine
+                    shininess: 50, // Controls the size and intensity of the specular highlight
                     transparent: true,
-                    opacity: 0.7
+                    opacity: 0.8 // Slightly transparent
                 });
                 const globe = new THREE.Mesh(geometry, material);
                 scene.add(globe);
 
-                // Simulated "connections" or "data flows"
-                const numConnections = 20;
+                // Simulated "connections" or "data flows" with curves and animation
+                const numConnections = 30; // More connections
                 const connectionColor = new THREE.Color(colorPalettes[colorTheme]['--globe-lines']);
-                const connections = [];
+                connectionsRef.current = []; // Clear previous connections
 
                 for (let i = 0; i < numConnections; i++) {
                     const startLat = generateRandomValue(-90, 90);
@@ -436,50 +446,75 @@
                     const endLat = generateRandomValue(-90, 90);
                     const endLon = generateRandomValue(-180, 180);
 
-                    const startPoint = latLonToCartesian(startLat, startLon, 1.5);
-                    const endPoint = latLonToCartesian(endLat, endLon, 1.5);
+                    const startPoint = latLonToCartesian(startLat, startLon, 1.51); // Slightly above globe surface
+                    const endPoint = latLonToCartesian(endLat, endLon, 1.51);
 
-                    const curve = new THREE.LineCurve3(startPoint, endPoint);
-                    const curveGeometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(50));
-                    const curveMaterial = new THREE.LineBasicMaterial({ color: connectionColor, transparent: true, opacity: 0.5 });
+                    // Add a control point for a smooth curve
+                    const midPoint = new THREE.Vector3().addVectors(startPoint, endPoint).multiplyScalar(0.5);
+                    // Push the mid-point outwards to create a more pronounced curve
+                    midPoint.setLength(1.51 * generateRandomValue(1.1, 1.3));
+
+                    const curve = new THREE.CatmullRomCurve3([startPoint, midPoint, endPoint]);
+                    const curveGeometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(100)); // More points for smoother curve
+                    const curveMaterial = new THREE.LineDashedMaterial({ // Dashed line for data flow effect
+                        color: connectionColor,
+                        linewidth: 1,
+                        scale: 1,
+                        dashSize: generateRandomValue(0.05, 0.15), // Random dash size for variety
+                        gapSize: generateRandomValue(0.02, 0.08), // Random gap size
+                        transparent: true,
+                        opacity: 0.6
+                    });
                     const line = new THREE.Line(curveGeometry, curveMaterial);
                     scene.add(line);
-                    connections.push(line);
+                    connectionsRef.current.push(line);
                 }
 
-                // Simulated Company HQs (fixed locations)
+                // Simulated Company HQs (fixed locations) - now with glow effect
                 const hqLocations = [
-                    { lat: 38.9072, lon: -77.0369, name: "Washington D.C." }, // General area for gov contractors
+                    { lat: 38.9072, lon: -77.0369, name: "Washington D.C." },
                     { lat: 34.0522, lon: -118.2437, name: "Los Angeles" },
                     { lat: 29.7604, lon: -95.3698, name: "Houston" },
                     { lat: 40.7128, lon: -74.0060, name: "New York" },
                     { lat: 33.7490, lon: -84.3880, name: "Atlanta" },
                 ];
 
-                const hqBlipMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(colorPalettes[colorTheme]['--globe-hq-color']), transparent: true, opacity: 0.8 });
+                const hqBlipCoreMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(colorPalettes[colorTheme]['--globe-hq-color']), transparent: true, opacity: 1 });
+                const hqBlipGlowMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(colorPalettes[colorTheme]['--globe-hq-color']), transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending }); // Additive blending for glow
+                hqBlipsRef.current = []; // Clear previous blips
                 hqLocations.forEach(hq => {
                     const pos = latLonToCartesian(hq.lat, hq.lon, 1.51); // Slightly above globe surface
-                    const hqBlip = new THREE.Mesh(new THREE.SphereGeometry(0.05, 16, 16), hqBlipMaterial);
-                    hqBlip.position.copy(pos);
-                    hqBlip.name = `HQ-${hq.name}`;
-                    scene.add(hqBlip);
-                    hqBlipsRef.current.push(hqBlip); // Store for animation
+                    const hqBlipCore = new THREE.Mesh(new THREE.SphereGeometry(0.02, 16, 16), hqBlipCoreMaterial);
+                    hqBlipCore.position.copy(pos);
+                    scene.add(hqBlipCore);
+
+                    const hqBlipGlow = new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 16), hqBlipGlowMaterial); // Larger glow sphere
+                    hqBlipGlow.position.copy(pos);
+                    scene.add(hqBlipGlow);
+
+                    hqBlipsRef.current.push({ core: hqBlipCore, glow: hqBlipGlow });
                 });
 
 
-                // Simulated Contract Blips (dynamic, random locations)
+                // Simulated Contract Blips (dynamic, random locations) - now with glow effect
                 const numContractBlips = 50;
-                const contractBlipMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(colorPalettes[colorTheme]['--globe-blip-color']), transparent: true, opacity: 0.8 });
+                const contractBlipCoreMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(colorPalettes[colorTheme]['--globe-blip-color']), transparent: true, opacity: 1 });
+                const contractBlipGlowMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(colorPalettes[colorTheme]['--globe-blip-color']), transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending });
                 contractBlipsRef.current = []; // Clear previous blips
                 for (let i = 0; i < numContractBlips; i++) {
                     const lat = generateRandomValue(-70, 70); // Avoid poles for better visualization
                     const lon = generateRandomValue(-180, 180);
                     const pos = latLonToCartesian(lat, lon, 1.505); // Slightly above globe surface
-                    const blip = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), contractBlipMaterial);
-                    blip.position.copy(pos);
-                    blip.name = `Contract-${i}`;
-                    scene.add(blip);
-                    contractBlipsRef.current.push(blip); // Store for animation
+
+                    const blipCore = new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 8), contractBlipCoreMaterial);
+                    blipCore.position.copy(pos);
+                    scene.add(blipCore);
+
+                    const blipGlow = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), contractBlipGlowMaterial);
+                    blipGlow.position.copy(pos);
+                    scene.add(blipGlow);
+
+                    contractBlipsRef.current.push({ core: blipCore, glow: blipGlow });
                 }
 
                 // Convert lat/lon to Cartesian coordinates
@@ -508,8 +543,13 @@
                     const deltaX = event.clientX - previousMousePosition.x;
                     const deltaY = event.clientY - previousMousePosition.y;
 
+                    // Adjust sensitivity
                     globe.rotation.y += deltaX * 0.005;
                     globe.rotation.x += deltaY * 0.005;
+
+                    // Optional: Limit rotation to prevent flipping
+                    // globe.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, globe.rotation.x));
+
 
                     previousMousePosition = { x: event.clientX, y: event.clientY };
                 };
@@ -530,16 +570,22 @@
 
                     globe.rotation.y += 0.002; // Continuous slow rotation
 
-                    // Animate blips
-                    time += 0.05; // Increment time for animation
+                    // Animate blips for neon glow effect
+                    time += 0.05;
                     const pulseScale = 1 + Math.sin(time) * 0.3; // Scale from 0.7 to 1.3
                     const pulseOpacity = 0.5 + (Math.sin(time * 0.8) + 1) * 0.25; // Opacity from 0.5 to 1.0
 
-                    [...hqBlipsRef.current, ...contractBlipsRef.current].forEach(blip => {
-                        blip.scale.set(pulseScale, pulseScale, pulseScale);
-                        blip.material.opacity = pulseOpacity;
+                    [...hqBlipsRef.current, ...contractBlipsRef.current].forEach(blipPair => {
+                        blipPair.core.scale.set(pulseScale, pulseScale, pulseScale);
+                        // Glow sphere pulses larger and its opacity changes
+                        blipPair.glow.scale.set(pulseScale * 1.5, pulseScale * 1.5, pulseScale * 1.5);
+                        blipPair.glow.material.opacity = pulseOpacity;
                     });
 
+                    // Animate connection lines (dash offset)
+                    connectionsRef.current.forEach(line => {
+                        line.material.dashOffset -= 0.005; // Animate dash offset for flowing effect
+                    });
 
                     renderer.render(scene, camera);
                 };
@@ -566,20 +612,34 @@
                     if (currentMount && renderer.domElement) {
                         currentMount.removeChild(renderer.domElement);
                     }
+                    // Dispose of Three.js resources to prevent memory leaks
                     renderer.dispose();
                     geometry.dispose();
                     material.dispose();
-                    connections.forEach(line => {
+                    ambientLight.dispose();
+                    directionalLight.dispose();
+
+                    connectionsRef.current.forEach(line => {
                         line.geometry.dispose();
                         line.material.dispose();
                     });
-                    hqBlipMaterial.dispose();
-                    contractBlipMaterial.dispose();
-                    // Dispose of all blip geometries/materials if they were created uniquely
+                    // Dispose of blip materials if created uniquely per blip or shared
+                    hqBlipCoreMaterial.dispose();
+                    hqBlipGlowMaterial.dispose();
+                    contractBlipCoreMaterial.dispose();
+                    contractBlipGlowMaterial.dispose();
+
                     scene.children.forEach(obj => {
-                        if (obj.isMesh) {
-                            obj.geometry.dispose();
-                            obj.material.dispose();
+                        if (obj.isMesh || obj.isLine) {
+                            if (obj.geometry) obj.geometry.dispose();
+                            if (obj.material) {
+                                // If material is an array (for multi-material objects), iterate
+                                if (Array.isArray(obj.material)) {
+                                    obj.material.forEach(mat => mat.dispose());
+                                } else {
+                                    obj.material.dispose();
+                                }
+                            }
                         }
                     });
                 };
@@ -645,7 +705,7 @@
                     setCurrentValue(prev => parseFloat((prev + generateRandomValue(-0.1, 0.2)).toFixed(1)));
                     setCriticalPriority(prev => Math.min(60, Math.max(30, prev + generateRandomInt(-1, 3))));
                     setIngestionRate(parseFloat(generateRandomValue(1.0, 1.5).toFixed(1)));
-                    setThreatLevel(prev => Math.min(5, Math.max(1, prev + generateRandomInt(-1, 2))));
+                    setThreatLevel(prev => Math.min(5, Math.max(1, prev + generateRandomInt(-1, 2)));
 
                     // Update sector data slightly
                     setSectorData(prev => prev.map(s => ({
